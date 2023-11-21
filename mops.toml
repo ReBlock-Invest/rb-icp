@@ -1,0 +1,2 @@
+[dependencies]
+icrc1 = "https://github.com/NatLabs/icrc1#master@2ede9a69a6d9d15802d44dafb5403e767269e27b"
