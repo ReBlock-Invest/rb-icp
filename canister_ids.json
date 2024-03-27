@@ -1,5 +1,8 @@
 {
+  "dummy_usdc": {
+    "ic": "o24ms-4yaaa-aaaal-ad7wq-cai"
+  },
   "rbpro_backend": {
-    "ic": "7eepu-qaaaa-aaaak-aferq-cai"
+    "ic": "m3fyl-yqaaa-aaaal-ad73a-cai"
   }
 }

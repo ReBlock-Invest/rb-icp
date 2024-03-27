@@ -1,0 +1,1 @@
+(text, text, text, nat8, nat, principal, nat)

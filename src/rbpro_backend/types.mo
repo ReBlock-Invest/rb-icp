@@ -4,17 +4,6 @@ module {
 
     public type Token = Principal;
 
-    public type OrderId = Nat32;
-  
-    public type Order = {
-        id: OrderId;
-        owner: Principal;
-        from: Token;
-        fromAmount: Nat;
-        to: Token;
-        toAmount: Nat;
-    };
-    
     // ledger types
     public type Operation = {
         #approve;
@@ -23,28 +12,27 @@ module {
         #transferFrom;
     };
 
- 
     public type TransactionStatus = {
         #succeeded;
         #failed;
     };
 
     public type TxRecord = {
-        caller: ?Principal;
-        op: Operation; // operation type
-        index: Nat; // transaction index
-        from: Principal;
-        to: Principal;
-        amount: Nat;
-        fee: Nat;
-        timestamp: Time.Time;
-        status: TransactionStatus;
+        caller : ?Principal;
+        op : Operation; // operation type
+        index : Nat; // transaction index
+        from : Principal;
+        to : Principal;
+        amount : Nat;
+        fee : Nat;
+        timestamp : Time.Time;
+        status : TransactionStatus;
     };
 
     // Dip20 token interface
     public type TxReceipt = {
-        #Ok: Nat;
-        #Err: {
+        #Ok : Nat;
+        #Err : {
             #InsufficientAllowance;
             #InsufficientBalance;
             #ErrorOperationStyle;
@@ -67,51 +55,58 @@ module {
         fee : Nat; // fee for update calls
     };
 
-
     public type DIPInterface = actor {
-        transfer : (Principal,Nat) ->  async TxReceipt;
-        transferFrom : (Principal,Principal,Nat) -> async TxReceipt;
-        allowance : (owner: Principal, spender: Principal) -> async Nat;
-        getMetadata: () -> async Metadata;
+        transfer : (Principal, Nat) -> async TxReceipt;
+        transferFrom : (Principal, Principal, Nat) -> async TxReceipt;
+        allowance : (owner : Principal, spender : Principal) -> async Nat;
+        getMetadata : () -> async Metadata;
     };
 
-    // return types
-    public type OrderPlacementErr = {
-        #InvalidOrder;
-        #OrderBookFull;
-    };
-    public type OrderPlacementReceipt = {
-        #Ok: ?Order;
-        #Err: OrderPlacementErr;
-    };
-    public type CancelOrderErr = {
-        #NotExistingOrder;
-        #NotAllowed;
-    };
-    public type CancelOrderReceipt = {
-        #Ok: OrderId;
-        #Err: CancelOrderErr;
-    };
     public type WithdrawErr = {
         #BalanceLow;
         #TransferFailure;
     };
     public type WithdrawReceipt = {
-        #Ok: Nat;
-        #Err: WithdrawErr;  
+        #Ok : Nat;
+        #Err : WithdrawErr;
     };
     public type DepositErr = {
         #BalanceLow;
         #TransferFailure;
     };
     public type DepositReceipt = {
-        #Ok: Nat;
-        #Err: DepositErr;
+        #Ok : Nat;
+        #Err : DepositErr;
+    };
+    public type RepayPrincipalErr = {
+        #BalanceLow;
+        #TransferFailure;
+    };
+    public type RepayPrincipalReceipt = {
+        #Ok : Nat;
+        #Err : RepayPrincipalErr;
+    };
+    public type RepayInterestErr = {
+        #BalanceLow;
+        #TransferFailure;
+    };
+    public type RepayInterestReceipt = {
+        #Ok : Nat;
+        #Err : RepayInterestErr;
+    };
+    public type DrawdownErr = {
+        #BalanceLow;
+        #TransferFailure;
+        #NotAuthorized;
+    };
+    public type DrawdownReceipt = {
+        #Ok : Nat;
+        #Err : DrawdownErr;
     };
     public type Balance = {
-        owner: Principal;
-        token: Token;
-        amount: Nat;
+        owner : Principal;
+        token : Token;
+        amount : Nat;
     };
 
-}
+};

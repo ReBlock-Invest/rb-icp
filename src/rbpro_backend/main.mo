@@ -1,4 +1,3 @@
-import Iter "mo:base/Iter";
 import Option "mo:base/Option";
 import Time "mo:base/Time";
 import Principal "mo:base/Principal";
@@ -10,14 +9,14 @@ import Debug "mo:base/Debug";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 
 import ICRC1 "mo:icrc1/ICRC1";
-import Array "mo:base/Array";
 import T "types";
 import Account "Account";
-import Ledger "Ledger";
 import Hex "hex";
 
 shared ({ caller = _owner }) actor class Token(
-    token_args : ICRC1.TokenInitArgs
+    token_args : ICRC1.TokenInitArgs,
+    _borrower : Principal,
+    _currency : Principal,
 ) : async ICRC1.FullInterface = this {
 
     stable let token = ICRC1.init({
@@ -30,9 +29,8 @@ shared ({ caller = _owner }) actor class Token(
         );
     });
 
-    let icp_fee : Nat = 10_000;
-
-    private let ledger : Ledger.Interface = actor (Ledger.CANISTER_ID);
+    stable var borrower : Principal = _borrower;
+    stable var currency : T.Token = _currency;
 
     /// Functions for the ICRC1 token standard
     public shared query func icrc1_name() : async Text {
@@ -100,66 +98,213 @@ shared ({ caller = _owner }) actor class Token(
         assert (accepted == amount);
     };
 
-    public shared (msg) func getDepositAddress() : async Text {
-        let account = Account.accountIdentifier(Principal.fromActor(this), Account.principalToSubaccount(msg.caller));
+    public shared (_msg) func get_borrower() : async Principal {
+        borrower;
+    };
 
+    public shared (_msg) func get_currency() : async Principal {
+        currency;
+    };
+
+    // ===== DEPOSIT FUNCTIONS =====
+
+    public shared (msg) func get_deposit_address() : async Text {
+        let account = Account.accountIdentifier(Principal.fromActor(this), Account.principalToSubaccount(msg.caller));
         Hex.encode(Blob.toArray(account));
     };
 
-    public shared (msg) func deposit(balance : Nat) : async T.DepositReceipt {
+    public shared (msg) func deposit(amount : Nat) : async T.DepositReceipt {
+        await deposit_dip(msg.caller, amount);
+    };
 
-        let source_account = Account.accountIdentifier(Principal.fromActor(this), Account.principalToSubaccount(msg.caller));
-        Debug.print(debug_show (source_account));
-        Debug.print(debug_show (msg.caller));
+    // After user approves tokens to the DEX
+    private func deposit_dip(caller : Principal, amount : Nat) : async T.DepositReceipt {
+        // cast token to actor
+        let dip20 = actor (Principal.toText(currency)) : T.DIPInterface;
+        let dip_fee = await fetch_dip_fee(currency);
+        let total = amount - dip_fee;
 
-        let source_balance = await ledger.account_balance({
-            account = source_account;
-        });
-        Debug.print(debug_show (source_balance));
-        // Transfer to default subaccount
-        let icp_receipt = await ledger.transfer({
-            memo : Nat64 = 0;
-            from_subaccount = ?Account.principalToSubaccount(msg.caller);
-            to = Account.accountIdentifier(Principal.fromText("pgnkx-ni6qy-vo72n-ubskw-pt4pi-7ftdk-np5wv-zsbnn-fey4m-7tnmq-2ae"), Account.defaultSubaccount());
-            amount = { e8s = Nat64.fromNat(balance) };
-            fee = { e8s = 10_000 };
-            created_at_time = ?{
-                timestamp_nanos = Nat64.fromNat(Int.abs(Time.now()));
-            };
-        });
+        // Check DIP20 allowance
+        let balance : Nat = (await dip20.allowance(caller, Principal.fromActor(this)));
 
-        Debug.print(debug_show (icp_receipt));
-        switch icp_receipt {
-            case (#Err _) {
+        // Transfer to account.
+        let token_receipt = if (balance >= amount) {
+            await dip20.transferFrom(caller, Principal.fromActor(this), amount);
+        } else {
+            return #Err(#BalanceLow);
+        };
+
+        Debug.print(debug_show (token_receipt));
+        switch token_receipt {
+            case (#Err e) {
                 return #Err(#TransferFailure);
             };
             case _ {};
         };
-        let available = {
-            e8s : Nat = Nat64.toNat(source_balance.e8s) - icp_fee;
-        };
 
-        let token_receipt = await* ICRC1.transfer(
+        let trx_receipt = await* ICRC1.transfer(
             token,
             {
-                amount = balance * 1000;
+                amount = total;
                 created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
                 fee = null;
                 from_subaccount = null;
                 memo = null;
-                to = { owner = msg.caller; subaccount = null };
+                to = { owner = caller; subaccount = null };
             },
-            Principal.fromText("x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe"),
+            token.minting_account.owner,
         );
 
-        switch token_receipt {
+        Debug.print(debug_show (trx_receipt));
+        switch trx_receipt {
             case (#Err _) {
                 return #Err(#TransferFailure);
             };
             case _ {};
         };
 
-        // Return result
-        #Ok(balance);
+        #Ok(total);
+    };
+
+    public shared (msg) func drawdown(amount : Nat) : async T.DrawdownReceipt {
+        if (msg.caller != borrower) {
+            return return #Err(#NotAuthorized);
+        };
+
+        // cast token to actor
+        let dip20 = actor (Principal.toText(currency)) : T.DIPInterface;
+        let dip_fee = await fetch_dip_fee(currency);
+        let total = amount - dip_fee;
+
+        let receipt = await dip20.transfer(borrower, amount);
+
+        Debug.print(debug_show (receipt));
+        switch receipt {
+            case (#Err _) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        #Ok(total);
+    };
+
+    public shared (msg) func repay_principal(amount : Nat) : async T.RepayPrincipalReceipt {
+        // cast token to actor
+        let dip20 = actor (Principal.toText(currency)) : T.DIPInterface;
+        let dip_fee = await fetch_dip_fee(currency);
+        let total = amount - dip_fee;
+
+        // Check DIP20 allowance
+        let balance : Nat = (await dip20.allowance(msg.caller, Principal.fromActor(this)));
+
+        // Transfer to account.
+        let token_receipt = if (balance >= amount) {
+            await dip20.transferFrom(msg.caller, Principal.fromActor(this), amount);
+        } else {
+            return #Err(#BalanceLow);
+        };
+        Debug.print(debug_show (token_receipt));
+        switch token_receipt {
+            case (#Err e) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        #Ok(total);
+    };
+
+    public shared (msg) func repay_interest(amount : Nat) : async T.RepayInterestReceipt {
+        // cast token to actor
+        let dip20 = actor (Principal.toText(currency)) : T.DIPInterface;
+        let dip_fee = await fetch_dip_fee(currency);
+        let total = amount - dip_fee;
+
+        // Check DIP20 allowance
+        let balance : Nat = (await dip20.allowance(msg.caller, Principal.fromActor(this)));
+
+        // Transfer to account.
+        let token_receipt = if (balance >= amount) {
+            await dip20.transferFrom(msg.caller, Principal.fromActor(this), amount);
+        } else {
+            return #Err(#BalanceLow);
+        };
+        Debug.print(debug_show (token_receipt));
+        switch token_receipt {
+            case (#Err e) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        #Ok(total);
+    };
+
+    public shared (msg) func withdraw(amount : Nat) : async T.WithdrawReceipt {
+        let balance = ICRC1.balance_of(
+            token,
+            {
+                owner = msg.caller;
+                subaccount = ?Account.defaultSubaccount();
+            },
+        );
+        Debug.print(debug_show (balance));
+
+        if (balance < amount) {
+            return return #Err(#BalanceLow);
+        };
+
+        let trx_receipt = await* ICRC1.burn(
+            token,
+            {
+                amount = amount;
+                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+                from_subaccount = ?Account.defaultSubaccount();
+                memo = null;
+            },
+            msg.caller,
+        );
+
+        Debug.print(debug_show (trx_receipt));
+        switch trx_receipt {
+            case (#Err _) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        // cast token to actor
+        let dip20 = actor (Principal.toText(currency)) : T.DIPInterface;
+        let dip_fee = await fetch_dip_fee(currency);
+        let total = amount - dip_fee;
+
+        let receipt = await dip20.transfer(msg.caller, amount);
+
+        Debug.print(debug_show (receipt));
+        switch receipt {
+            case (#Err _) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        #Ok(total);
+    };
+
+    private func fetch_dip_fee(token : T.Token) : async Nat {
+        let dip20 = actor (Principal.toText(token)) : T.DIPInterface;
+        let metadata = await dip20.getMetadata();
+        metadata.fee;
+    };
+
+    public shared (msg) func set_borrower(_borrower : Principal) {
+        assert (msg.caller == token.minting_account.owner);
+        borrower := _borrower;
+    };
+
+    public shared (msg) func set_currency(_currency : Principal) {
+        assert (msg.caller == token.minting_account.owner);
+        currency := _currency;
     };
 };

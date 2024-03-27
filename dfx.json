@@ -26,6 +26,10 @@
         "dist/rbpro_frontend/"
       ],
       "type": "assets"
+    },
+    "dummy_usdc": {
+      "main": "src/token/DIP20.mo",
+      "type": "motoko"
     }
   },
   "defaults": {
