@@ -23,11 +23,11 @@ HOME=$ROOT_HOME dfx canister  call DIP20 setFee "(420)"
 HOME=$ROOT_HOME dfx canister --no-wallet call DIP20 balanceOf "($ROOT_PUBLIC_KEY)"
 ``` 
 
-dfx canister call dummy_usdc balanceOf "principal \"fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae\""
+dfx canister call dummy_usdc balanceOf "principal \"6cgi3-xxb7q-44fnk-zbipl-lseh5-u3eza-lab5h-adsdu-5fzrr-2ripn-rae\""
 
 dfx canister call dummy_usdc transfer "(principal \"pgnkx-ni6qy-vo72n-ubskw-pt4pi-7ftdk-np5wv-zsbnn-fey4m-7tnmq-2ae\", 5_000_000_000_000_000)"
 dfx canister call dummy_usdc transfer "(principal \"swdh7-mgsq6-6x3kl-j22oa-hemcw-zbjds-xrc6s-4gbaw-u4kg3-7bsk5-vae\", 5_000_000_000_000)"
-dfx canister call dummy_usdc transfer "(principal \"fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae\", 100_000_000_000)"
+dfx canister call dummy_usdc transfer "(principal \"6cgi3-xxb7q-44fnk-zbipl-lseh5-u3eza-lab5h-adsdu-5fzrr-2ripn-rae\", 100_000_000_000)"
 
 dfx canister status --network ic --wallet o55kg-raaaa-aaaal-ad7wa-cai
 
@@ -70,4 +70,4 @@ dfx canister call dummy_usdc balanceOf 'principal "swdh7-mgsq6-6x3kl-j22oa-hemcw
 # update setting
 dfx canister call dummy_usdc setFee "(0)"
 
-dfx canister call rbpro_backend setBorrower '(principal "qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae")'
+dfx canister call rbpro_backend set_borrower '(principal "j6opj-lgtdp-xyqfx-uqclw-25kr2-kg3ku-cdwbq-vqlxy-qvfk6-532rn-4ae")'
