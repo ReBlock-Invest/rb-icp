@@ -5,6 +5,7 @@ import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Blob "mo:base/Blob";
 import Debug "mo:base/Debug";
+import Array "mo:base/Array";
 
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 
@@ -19,6 +20,10 @@ shared ({ caller = _owner }) actor class Token(
     _currency : Principal,
 ) : async ICRC1.FullInterface = this {
 
+    type PoolOperation = T.PoolOperation;
+    type TransactionStatus = T.TransactionStatus;
+    type PoolTxRecord = T.PoolTxRecord;
+
     stable let token = ICRC1.init({
         token_args with minting_account = Option.get(
             token_args.minting_account,
@@ -31,6 +36,82 @@ shared ({ caller = _owner }) actor class Token(
 
     stable var borrower : Principal = _borrower;
     stable var currency : T.Token = _currency;
+
+    /// Indexer
+
+    private stable let genesis : PoolTxRecord = {
+        caller = ?_owner;
+        op = #init;
+        index = 0;
+        from = _owner;
+        to = _owner;
+        amount = 0;
+        fee = 0;
+        timestamp = Time.now();
+        status = #succeeded;
+    };
+
+    private stable var pool_ops : [PoolTxRecord] = [genesis];
+
+    private func add_pool_record(
+        caller : ?Principal,
+        op : PoolOperation,
+        from : Principal,
+        to : Principal,
+        amount : Nat,
+        fee : Nat,
+        timestamp : Time.Time,
+        status : TransactionStatus,
+    ) : Nat {
+        let index = pool_ops.size();
+        let o : PoolTxRecord = {
+            caller = caller;
+            op = op;
+            index = index;
+            from = from;
+            to = to;
+            amount = amount;
+            fee = fee;
+            timestamp = timestamp;
+            status = status;
+        };
+        pool_ops := Array.append(pool_ops, [o]);
+        return index;
+    };
+
+    public query func history_size() : async Nat {
+        return pool_ops.size();
+    };
+
+    /// Get transaction by index.
+    public query func get_pool_transaction(index : Nat) : async PoolTxRecord {
+        return pool_ops[index];
+    };
+
+    /// Get history
+    public query func get_pool_transactions(start : Nat, limit : Nat) : async [PoolTxRecord] {
+        var ret : [PoolTxRecord] = [];
+        var i = start;
+        while (i < start + limit and i < pool_ops.size()) {
+            ret := Array.append(ret, [pool_ops[i]]);
+            i += 1;
+        };
+        return ret;
+    };
+
+    public query func get_user_transactons(a : Principal, start : Nat, limit : Nat) : async [PoolTxRecord] {
+        var res : [PoolTxRecord] = [];
+        var index : Nat = 0;
+        for (i in pool_ops.vals()) {
+            if (i.caller == ?a or i.from == a or i.to == a) {
+                if (index >= start and index < start + limit) {
+                    res := Array.append<PoolTxRecord>(res, [i]);
+                };
+                index += 1;
+            };
+        };
+        return res;
+    };
 
     /// Functions for the ICRC1 token standard
     public shared query func icrc1_name() : async Text {
@@ -163,6 +244,8 @@ shared ({ caller = _owner }) actor class Token(
             case _ {};
         };
 
+        let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount, dip_fee, Time.now(), #succeeded);
+
         #Ok(total);
     };
 
@@ -185,6 +268,8 @@ shared ({ caller = _owner }) actor class Token(
             };
             case _ {};
         };
+
+        let _txtid = add_pool_record(?msg.caller, #drawdown, Principal.fromActor(this), borrower, amount, dip_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };
@@ -212,6 +297,8 @@ shared ({ caller = _owner }) actor class Token(
             case _ {};
         };
 
+        let _txtid = add_pool_record(?msg.caller, #repayPrincipal, borrower, Principal.fromActor(this), amount, dip_fee, Time.now(), #succeeded);
+
         #Ok(total);
     };
 
@@ -237,6 +324,8 @@ shared ({ caller = _owner }) actor class Token(
             };
             case _ {};
         };
+
+        let _txtid = add_pool_record(?msg.caller, #repayInterest, borrower, Principal.fromActor(this), amount, dip_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };
@@ -288,6 +377,8 @@ shared ({ caller = _owner }) actor class Token(
             };
             case _ {};
         };
+
+        let _txtid = add_pool_record(?msg.caller, #withdraw, Principal.fromActor(this), msg.caller, amount, dip_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };

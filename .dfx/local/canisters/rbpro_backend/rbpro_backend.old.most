@@ -63,8 +63,8 @@ type Trie<K, V> = {#branch : Branch<K, V>; #empty; #leaf : Leaf<K, V>};
 type TxIndex = Nat;
 type Value = {#Blob : Blob; #Int : Int; #Nat : Nat; #Text : Text};
 actor {
-  stable borrower : Principal;
-  stable currency : Principal;
+  stable var borrower : Principal;
+  stable var currency : Principal;
   stable token :
     {
       var _burned_tokens : Balance__1;

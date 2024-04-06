@@ -12,6 +12,15 @@ module {
         #transferFrom;
     };
 
+    public type PoolOperation = {
+        #init;
+        #deposit;
+        #withdraw;
+        #repayInterest;
+        #repayPrincipal;
+        #drawdown;
+    };
+
     public type TransactionStatus = {
         #succeeded;
         #failed;
@@ -20,6 +29,18 @@ module {
     public type TxRecord = {
         caller : ?Principal;
         op : Operation; // operation type
+        index : Nat; // transaction index
+        from : Principal;
+        to : Principal;
+        amount : Nat;
+        fee : Nat;
+        timestamp : Time.Time;
+        status : TransactionStatus;
+    };
+
+    public type PoolTxRecord = {
+        caller : ?Principal;
+        op : PoolOperation; // operation type
         index : Nat; // transaction index
         from : Principal;
         to : Principal;

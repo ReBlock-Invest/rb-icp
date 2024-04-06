@@ -31,6 +31,21 @@ type List<T> = ?(T, List<T>);
 type MetaDatum = (Text, Value);
 type Mint =
   {amount : Balance__1; created_at_time : ?Nat64; memo : ?Blob; to : Account};
+type PoolOperation =
+  {#deposit; #drawdown; #init; #repayInterest; #repayPrincipal; #withdraw};
+type PoolTxRecord =
+  {
+    amount : Nat;
+    caller : ?Principal;
+    fee : Nat;
+    from : Principal;
+    index : Nat;
+    op : PoolOperation;
+    status : TransactionStatus;
+    timestamp : Time;
+    to : Principal
+  };
+type PoolTxRecord__1 = PoolTxRecord;
 type Result<Ok, Err> = {#err : Err; #ok : Ok};
 type StableBuffer<X> =
   {var count : Nat; var elems : [var X]; initCapacity : Nat};
@@ -39,6 +54,7 @@ type StableTrieMap<K, V> = {var _size : Nat; var trie : Trie<K, V>};
 type StableTrieMap__1<K, V> = StableTrieMap<K, V>;
 type Subaccount__1 = Blob;
 type SupportedStandard = {name : Text; url : Text};
+type Time = Int;
 type Timestamp = Nat64;
 type Transaction =
   {
@@ -50,6 +66,7 @@ type Transaction =
     transfer : ?Transfer
   };
 type TransactionRange = {transactions : [Transaction]};
+type TransactionStatus = {#failed; #succeeded};
 type Transfer =
   {
     amount : Balance__1;
@@ -65,6 +82,19 @@ type Value = {#Blob : Blob; #Int : Int; #Nat : Nat; #Text : Text};
 actor {
   stable var borrower : Principal;
   stable var currency : Principal;
+  stable genesis :
+    {
+      amount : Nat;
+      caller : ?Principal;
+      fee : Nat;
+      from : Principal;
+      index : Nat;
+      op : PoolOperation;
+      status : TransactionStatus;
+      timestamp : Time;
+      to : Principal
+    };
+  stable var pool_ops : [PoolTxRecord__1];
   stable token :
     {
       var _burned_tokens : Balance__1;

@@ -236,5 +236,7 @@ service : {
   mint: (Mint) -> (TransferResult);
   repay_interest: (nat) -> (RepayInterestReceipt);
   repay_principal: (nat) -> (RepayPrincipalReceipt);
+  setBorrower: (principal) -> () oneway;
+  setCurrency: (principal) -> () oneway;
   withdraw: (nat) -> (WithdrawReceipt);
 }

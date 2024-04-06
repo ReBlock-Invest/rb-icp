@@ -36,7 +36,7 @@ dfx ledger create-canister x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc
 dfx identity --network ic deploy-wallet o55kg-raaaa-aaaal-ad7wa-cai
 
 
-dfx deploy rbpro_backend --argument '(record { name = "ReBlock Token Pool"; symbol = "RBX"; decimals = 8; fee = 1_000_000; max_supply = 1_000_000_000_000_000_000; initial_balances = vec {}; min_burn_amount = 0; }, principal "qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae", principal "be2us-64aaa-aaaaa-qaabq-cai")'
+dfx deploy rbpro_backend --argument '(record { name = "ReBlock Token Pool"; symbol = "RBX"; decimals = 8; fee = 0; max_supply = 1_000_000_000_000_000_000; initial_balances = vec {}; min_burn_amount = 0; }, principal "qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae", principal "be2us-64aaa-aaaaa-qaabq-cai")'
 
 # borrower = qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae
 # lender = swdh7-mgsq6-6x3kl-j22oa-hemcw-zbjds-xrc6s-4gbaw-u4kg3-7bsk5-vae
@@ -47,7 +47,7 @@ dfx canister call dummy_usdc approve "(principal \"bw4dl-smaaa-aaaaa-qaacq-cai\"
 dfx canister call rbpro_backend deposit "(900_000_000)"
 
 dfx canister call rbpro_backend icrc1_balance_of '(record { owner = principal "fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae"; subaccount = null })'
-dfx canister call dummy_usdc balanceOf 'principal "bw4dl-smaaa-aaaaa-qaacq-cai"'
+dfx canister call dummy_usdc balanceOf 'principal "swdh7-mgsq6-6x3kl-j22oa-hemcw-zbjds-xrc6s-4gbaw-u4kg3-7bsk5-vae"'
 
 # drawdown USDC from borrower
 dfx canister call rbpro_backend drawdown "(900_000_000)"
@@ -71,3 +71,6 @@ dfx canister call dummy_usdc balanceOf 'principal "swdh7-mgsq6-6x3kl-j22oa-hemcw
 dfx canister call dummy_usdc setFee "(0)"
 
 dfx canister call rbpro_backend set_borrower '(principal "j6opj-lgtdp-xyqfx-uqclw-25kr2-kg3ku-cdwbq-vqlxy-qvfk6-532rn-4ae")'
+
+# get transactions
+dfx canister call rbpro_backend get_pool_transactions "(0,5)"
