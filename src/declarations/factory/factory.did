@@ -1,0 +1,52 @@
+type Time = int;
+type PoolStatus = 
+ variant {
+   active;
+   default;
+   inactive;
+   pending;
+   upcoming;
+ };
+type PoolRecord = 
+ record {
+   apr: text;
+   borrower: principal;
+   credit_rating: text;
+   description: text;
+   fundrise_end_time: Time;
+   id: principal;
+   issuer_description: text;
+   issuer_picture: text;
+   loan_term: text;
+   maturity_date: Time;
+   origination_date: Time;
+   payment_frequency: text;
+   secured_by: text;
+   smart_contract_url: text;
+   status: PoolStatus;
+   timestamp: Time;
+   title: text;
+   total_loan_amount: text;
+ };
+type PoolInfo = 
+ record {
+   apr: text;
+   borrower: principal;
+   credit_rating: text;
+   description: text;
+   fundrise_end_time: Time;
+   issuer_description: text;
+   issuer_picture: text;
+   loan_term: text;
+   maturity_date: Time;
+   origination_date: Time;
+   payment_frequency: text;
+   secured_by: text;
+   smart_contract_url: text;
+   title: text;
+   total_loan_amount: text;
+ };
+service : {
+  get_pools: (nat, nat) -> (vec PoolRecord) query;
+  proposePool: (PoolInfo) -> (principal);
+}

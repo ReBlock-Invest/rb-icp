@@ -2,6 +2,9 @@
   "dummy_usdc": {
     "ic": "o24ms-4yaaa-aaaal-ad7wq-cai"
   },
+  "factory": {
+    "ic": "rugve-6qaaa-aaaal-ajafq-cai"
+  },
   "rbpro_backend": {
     "ic": "m3fyl-yqaaa-aaaal-ad73a-cai"
   }

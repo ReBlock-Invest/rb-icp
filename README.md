@@ -192,3 +192,48 @@ get_user_transactons([user principal], [start], [limit])
   },
 )
 ```
+
+# Pool Factory
+
+## Get Pools
+
+```bash
+# target RB factory canister
+get_pools([start], [limit])
+
+# result
+(
+  vec {
+    record {
+      id = principal "rbbej-7yaaa-aaaal-ajaga-cai";
+      apr = "5.5%";
+      status = variant { pending };
+      title = "Retail Government Bonds (ORI)";
+      issuer_picture = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Logo_kementerian_keuangan_republik_indonesia.png/120px-Logo_kementerian_keuangan_republik_indonesia.png";
+      smart_contract_url = "https://i.ibb.co/XVMhZM2/reblock.jpg";
+      total_loan_amount = "250,000.00";
+      payment_frequency = "MONTHLY";
+      description = "ORI is a retail investment instrument in the form of government bonds that can be traded on the secondary market. ORI also has a fixed coupon in the form of monthly yields paid to the investor who purchases it";
+      borrower = principal "ezp3d-dn22j-wyyra-ctgbg-tly7k-khzap-lqbat-gimyf-2ckmf-6uzv7-wae";
+      maturity_date = 1_000_000_000_000 : int;
+      loan_term = "12 MONTHS";
+      issuer_description = "Indonesia Ministry of Finance";
+      timestamp = 1_713_785_557_115_973_080 : int;
+      secured_by = "Indonesia Ministry of Finance";
+      fundrise_end_time = 5_000_000_000 : int;
+      credit_rating = "A";
+      origination_date = 1_000_000_000 : int;
+    };
+  },
+)
+```
+
+## Propose Pool
+
+```bash
+# target RB factory canister
+proposePool(record {apr:text; title:text; issuer_picture:text; smart_contract_url:text; total_loan_amount:text; payment_frequency:text; description:text; borrower:principal; maturity_date:int; loan_term:text; issuer_description:text; secured_by:text; fundrise_end_time:int; credit_rating:text; origination_date:int})
+
+# result
+(principal "xxx")
+```

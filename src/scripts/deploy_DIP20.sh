@@ -70,7 +70,14 @@ dfx canister call dummy_usdc balanceOf 'principal "swdh7-mgsq6-6x3kl-j22oa-hemcw
 # update setting
 dfx canister call dummy_usdc setFee "(0)"
 
-dfx canister call rbpro_backend set_borrower '(principal "j6opj-lgtdp-xyqfx-uqclw-25kr2-kg3ku-cdwbq-vqlxy-qvfk6-532rn-4ae")'
+dfx canister call rbpro_backend set_borrower '(principal "ezp3d-dn22j-wyyra-ctgbg-tly7k-khzap-lqbat-gimyf-2ckmf-6uzv7-wae")' --network ic
 
 # get transactions
 dfx canister call rbpro_backend get_pool_transactions "(0,5)"
+
+
+# propose pool
+
+dfx canister call factory get_pools "(0,5)"
+
+dfx canister call factory proposePool '(record {apr = "5.5%"; title = "Retail Government Bonds (ORI)"; issuer_picture = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Logo_kementerian_keuangan_republik_indonesia.png/120px-Logo_kementerian_keuangan_republik_indonesia.png"; smart_contract_url = "https://i.ibb.co/XVMhZM2/reblock.jpg"; total_loan_amount = "250,000.00"; payment_frequency = "MONTHLY"; description = "ORI is a retail investment instrument in the form of government bonds that can be traded on the secondary market. ORI also has a fixed coupon in the form of monthly yields paid to the investor who purchases it"; borrower = principal "ezp3d-dn22j-wyyra-ctgbg-tly7k-khzap-lqbat-gimyf-2ckmf-6uzv7-wae"; maturity_date = 1000000000000; loan_term = "12 MONTHS"; issuer_description = "Indonesia Ministry of Finance"; secured_by = "Indonesia Ministry of Finance"; fundrise_end_time = 5000000000; credit_rating = "A"; origination_date = 1000000000})' --network ic

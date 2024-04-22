@@ -130,4 +130,50 @@ module {
         amount : Nat;
     };
 
+    public type PoolStatus = {
+        #pending;
+        #upcoming;
+        #active;
+        #default;
+        #inactive;
+    };
+
+    public type PoolInfo = {
+        borrower : Principal;
+        apr : Text;
+        credit_rating : Text;
+        description : Text;
+        fundrise_end_time : Time.Time;
+        issuer_description : Text;
+        issuer_picture : Text;
+        loan_term : Text;
+        maturity_date : Time.Time;
+        origination_date : Time.Time;
+        payment_frequency : Text;
+        secured_by : Text;
+        smart_contract_url : Text;
+        title : Text;
+        total_loan_amount : Text;
+    };
+
+    public type PoolRecord = {
+        id : Principal;
+        borrower : Principal;
+        apr : Text;
+        credit_rating : Text;
+        description : Text;
+        fundrise_end_time : Time.Time;
+        issuer_description : Text;
+        issuer_picture : Text;
+        loan_term : Text;
+        maturity_date : Time.Time;
+        origination_date : Time.Time;
+        payment_frequency : Text;
+        secured_by : Text;
+        smart_contract_url : Text;
+        title : Text;
+        total_loan_amount : Text;
+        timestamp : Time.Time;
+        status : PoolStatus;
+    };
 };
