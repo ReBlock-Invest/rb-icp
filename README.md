@@ -4,6 +4,7 @@
 
 - [Dummy USDC: o24ms-4yaaa-aaaal-ad7wq-cai](https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=o24ms-4yaaa-aaaal-ad7wq-cai)
 - [RB Pool: m3fyl-yqaaa-aaaal-ad73a-cai ](https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=m3fyl-yqaaa-aaaal-ad73a-cai)
+- [Pool Factory: rugve-6qaaa-aaaal-ajafq-cai ](https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=rugve-6qaaa-aaaal-ajafq-cai)
 
 ## Total Supply (pool balance)
 
