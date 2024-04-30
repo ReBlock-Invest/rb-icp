@@ -5,7 +5,13 @@
   "factory": {
     "ic": "rugve-6qaaa-aaaal-ajafq-cai"
   },
+  "icrc1_ledger_canister": {
+    "ic": "rpdjb-eiaaa-aaaal-ajaha-cai"
+  },
   "rbpro_backend": {
     "ic": "m3fyl-yqaaa-aaaal-ad73a-cai"
+  },
+  "rbt_token": {
+    "ic": "ricpv-jqaaa-aaaal-ajahq-cai"
   }
 }

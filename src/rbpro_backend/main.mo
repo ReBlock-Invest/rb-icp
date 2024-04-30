@@ -21,7 +21,7 @@ shared ({ caller = _owner }) actor class Token(
 ) : async ICRC1.FullInterface = this {
 
     type PoolOperation = T.PoolOperation;
-    type TransactionStatus = T.TransactionStatus;
+    type TransactionStatus = T.TxStatus;
     type PoolTxRecord = T.PoolTxRecord;
 
     stable let token = ICRC1.init({
@@ -35,7 +35,7 @@ shared ({ caller = _owner }) actor class Token(
     });
 
     stable var borrower : Principal = _borrower;
-    stable var currency : T.Token = _currency;
+    stable var currency : Principal = _currency;
 
     /// Indexer
 
@@ -383,7 +383,7 @@ shared ({ caller = _owner }) actor class Token(
         #Ok(total);
     };
 
-    private func fetch_dip_fee(token : T.Token) : async Nat {
+    private func fetch_dip_fee(token : Principal) : async Nat {
         let dip20 = actor (Principal.toText(token)) : T.DIPInterface;
         let metadata = await dip20.getMetadata();
         metadata.fee;
