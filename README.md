@@ -229,12 +229,30 @@ get_pools([start], [limit])
 )
 ```
 
-## Propose Pool
+## Create Pool
 
 ```bash
 # target RB factory canister
-proposePool(record {apr:text; title:text; issuer_picture:text; smart_contract_url:text; total_loan_amount:text; payment_frequency:text; description:text; borrower:principal; maturity_date:int; loan_term:text; issuer_description:text; secured_by:text; fundrise_end_time:int; credit_rating:text; origination_date:int})
+back_loan: (record {asset:principal; info:record {apr:text; title:text; issuer_picture:text; total_loan_amount:text; payment_frequency:text; description:text; maturity_date:int; loan_term:text; issuer_description:text; secured_by:text; fundrise_end_time:int; credit_rating:text; origination_date:int}; token_args:record {fee:nat; advanced_settings:opt record {permitted_drift:nat64; burned_tokens:nat; transaction_window:nat64}; decimals:nat8; minting_account:opt record {owner:principal; subaccount:opt vec nat8}; name:text; initial_balances:vec record {record {owner:principal; subaccount:opt vec nat8}; nat}; min_burn_amount:nat; max_supply:nat; symbol:text}; borrowers:vec principal}) → (principal) 
 
 # result
 (principal "xxx")
+```
+
+## Transfer Ownership
+
+```bash
+# target RB factory canister
+transfer_ownership: (principal) → (principal) 
+
+# result
+(principal "xxx")
+```
+
+## Set Default Pool Cycle
+
+```bash
+# target RB factory canister
+set_pool_cycle: (nat) → (nat) 
+
 ```
