@@ -9,6 +9,7 @@ import Blob "mo:base/Blob";
 import ICRC1 "mo:icrc1/ICRC1";
 import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
+import Error "mo:base/Error";
 
 import T "types";
 import Account "Account";
@@ -183,6 +184,14 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
 
     // ===== LENDING FUNCTIONS =====
 
+    public func get_borrower() : async [Principal] {
+        borrowers;
+    };
+
+    public func get_asset() : async Principal {
+        asset;
+    };
+
     public shared (msg) func get_deposit_address() : async Text {
         let account = Account.accountIdentifier(Principal.fromActor(this), Account.principalToSubaccount(msg.caller));
         Hex.encode(Blob.toArray(account));
@@ -245,7 +254,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
 
     public shared (msg) func drawdown(amount : Nat) : async T.DrawdownReceipt {
         if (not is_borrower(msg.caller)) {
-            return return #Err(#NotAuthorized);
+            return #Err(#NotAuthorized);
         };
 
         // cast token to actor
@@ -384,7 +393,9 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     };
 
     public shared (msg) func set_borrower(n_borrower : Principal) {
-        assert (msg.caller == owner);
+        if (msg.caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
 
         let buff = Buffer.Buffer<Principal>(borrowers.size());
         var found = false;
@@ -403,7 +414,9 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     };
 
     public shared (msg) func remove_borrower(n_borrower : Principal) {
-        assert (msg.caller == owner);
+        if (msg.caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
 
         let buff = Buffer.Buffer<Principal>(borrowers.size());
         for (x in borrowers.vals()) {

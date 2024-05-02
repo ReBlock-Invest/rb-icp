@@ -49,11 +49,11 @@ dfx deploy rbpro_backend --argument '(record { name = "ReBlock Token Pool"; symb
 # messi = fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae
 
 # deposit USDC from lender
-dfx canister call dummy_usdc approve "(principal \"bw4dl-smaaa-aaaaa-qaacq-cai\", 1_000_000_000)"
-dfx canister call rbpro_backend deposit "(900_000_000)"
+dfx canister call dummy_usdc approve "(principal \"aovwi-4maaa-aaaaa-qaagq-cai\", 1_000_000_000)"
+dfx canister call pool deposit "(1_000_000_000)"
 
-dfx canister call rbpro_backend icrc1_balance_of '(record { owner = principal "fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae"; subaccount = null })'
-dfx canister call dummy_usdc balanceOf 'principal "swdh7-mgsq6-6x3kl-j22oa-hemcw-zbjds-xrc6s-4gbaw-u4kg3-7bsk5-vae"'
+dfx canister call pool icrc1_balance_of '(record { owner = principal "x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe"; subaccount = null })'
+dfx canister call dummy_usdc balanceOf 'principal "aovwi-4maaa-aaaaa-qaagq-cai"'
 
 # drawdown USDC from borrower
 dfx canister call rbpro_backend drawdown "(900_000_000)"
@@ -92,3 +92,10 @@ dfx canister call factory proposePool '(record {apr = "5.5%"; title = "Retail Go
 dfx deploy icrc1_ledger_canister --argument "(variant {Init = record {token_symbol = \"RBT\"; token_name = \"ReBlock Token\";minting_account = record { owner = principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\" };transfer_fee = 10_000;metadata = vec {};feature_flags = opt record{icrc2 = true};initial_balances = vec { record { record { owner = principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\"; }; 100_000_000; }; };archive_options = record {num_blocks_to_archive = 1000;trigger_threshold = 2000;controller_id = principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\";cycles_for_archive_creation = opt 10000000000000;};}})"
 
 dfx canister install rbt_token --argument="(\"https://i.ibb.co/XVMhZM2/reblock.jpg\", \"ReBlock Token\", \"RBT\", 8, 10000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 10000)" --network ic
+
+
+dfx deploy factory 
+
+dfx canister call factory back_loan '(record { info = record {apr = "5.5%"; title = "Retail Government Bonds (ORI)"; issuer_picture = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/Logo_kementerian_keuangan_republik_indonesia.png/120px-Logo_kementerian_keuangan_republik_indonesia.png"; total_loan_amount = "250,000.00"; payment_frequency = "MONTHLY"; description = "ORI is a retail investment instrument in the form of government bonds that can be traded on the secondary market. ORI also has a fixed coupon in the form of monthly yields paid to the investor who purchases it"; maturity_date = 1746164164; loan_term = "12 MONTHS"; issuer_description = "Indonesia Ministry of Finance"; secured_by = "Indonesia Ministry of Finance"; fundrise_end_time = 5000000000; credit_rating = "A"; origination_date = 1714628164}; token_args = record {name = "ReBlock Token Pool"; symbol = "RB01"; decimals = 8; fee = 0; max_supply = 1_000_000_000_000_000_000; initial_balances = vec {}; min_burn_amount = 0;}; borrowers = vec { principal "qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae"; principal "fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae"; }; asset = principal "be2us-64aaa-aaaaa-qaabq-cai"; })' 
+
+dfx canister call pool withdraw "(1_000_000_000)"
