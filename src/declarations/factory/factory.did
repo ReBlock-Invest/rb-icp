@@ -1,4 +1,21 @@
+type TokenInitArgs = 
+ record {
+   advanced_settings: opt AdvancedSettings;
+   decimals: nat8;
+   fee: Balance;
+   initial_balances: vec record {
+                           Account;
+                           Balance;
+                         };
+   max_supply: Balance;
+   min_burn_amount: Balance;
+   minting_account: opt Account;
+   name: text;
+   symbol: text;
+ };
+type Timestamp = nat64;
 type Time = int;
+type Subaccount = blob;
 type PoolStatus = 
  variant {
    active;
@@ -10,7 +27,7 @@ type PoolStatus =
 type PoolRecord = 
  record {
    apr: text;
-   borrower: principal;
+   borrowers: vec principal;
    credit_rating: text;
    description: text;
    fundrise_end_time: Time;
@@ -22,7 +39,6 @@ type PoolRecord =
    origination_date: Time;
    payment_frequency: text;
    secured_by: text;
-   smart_contract_url: text;
    status: PoolStatus;
    timestamp: Time;
    title: text;
@@ -31,7 +47,6 @@ type PoolRecord =
 type PoolInfo = 
  record {
    apr: text;
-   borrower: principal;
    credit_rating: text;
    description: text;
    fundrise_end_time: Time;
@@ -42,11 +57,37 @@ type PoolInfo =
    origination_date: Time;
    payment_frequency: text;
    secured_by: text;
-   smart_contract_url: text;
    title: text;
    total_loan_amount: text;
  };
-service : {
-  get_pools: (nat, nat) -> (vec PoolRecord) query;
-  proposePool: (PoolInfo) -> (principal);
-}
+type PoolArgs = 
+ record {
+   asset: principal;
+   borrowers: vec principal;
+   info: PoolInfo;
+   token_args: TokenInitArgs;
+ };
+type Factory = 
+ service {
+   back_loan: (PoolArgs) -> (principal);
+   get_owner: () -> (principal) query;
+   get_pool_cycle: () -> (nat) query;
+   get_pools: (nat, nat) -> (vec PoolRecord) query;
+   propose_loan: (PoolArgs) -> () oneway;
+   set_pool_cycle: (nat) -> (nat);
+   transfer_ownership: (principal) -> (principal);
+   unback_loan: (principal) -> (principal);
+ };
+type Balance = nat;
+type AdvancedSettings = 
+ record {
+   burned_tokens: Balance;
+   permitted_drift: Timestamp;
+   transaction_window: Timestamp;
+ };
+type Account = 
+ record {
+   owner: principal;
+   subaccount: opt Subaccount;
+ };
+service : () -> Factory
