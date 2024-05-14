@@ -39,6 +39,7 @@ type PoolRecord =
    origination_date: Time;
    payment_frequency: text;
    secured_by: text;
+   smart_contract_url: text;
    status: PoolStatus;
    timestamp: Time;
    title: text;
@@ -57,6 +58,7 @@ type PoolInfo =
    origination_date: Time;
    payment_frequency: text;
    secured_by: text;
+   smart_contract_url: text;
    title: text;
    total_loan_amount: text;
  };
@@ -74,6 +76,7 @@ type Factory =
    get_pool_cycle: () -> (nat) query;
    get_pools: (nat, nat) -> (vec PoolRecord) query;
    propose_loan: (PoolArgs) -> () oneway;
+   remove_pool: (principal) -> (vec PoolRecord);
    set_pool_cycle: (nat) -> (nat);
    transfer_ownership: (principal) -> (principal);
    unback_loan: (principal) -> (principal);

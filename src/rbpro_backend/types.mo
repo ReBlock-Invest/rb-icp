@@ -63,6 +63,7 @@ module {
         origination_date : Time.Time;
         payment_frequency : Text;
         secured_by : Text;
+        smart_contract_url : Text;
         title : Text;
         total_loan_amount : Text;
     };
@@ -109,6 +110,7 @@ module {
         origination_date : Time.Time;
         payment_frequency : Text;
         secured_by : Text;
+        smart_contract_url : Text;
         title : Text;
         total_loan_amount : Text;
         timestamp : Time.Time;

@@ -110,10 +110,11 @@ shared (msg) actor class Factory() = this {
                     origination_date = args.info.origination_date;
                     payment_frequency = args.info.payment_frequency;
                     secured_by = args.info.secured_by;
+                    smart_contract_url = args.info.smart_contract_url # Principal.toText(canister_id);
                     title = args.info.title;
                     total_loan_amount = args.info.total_loan_amount;
                     timestamp = Time.now();
-                    status = #pending;
+                    status = #active;
                 };
 
                 add_pool_record(pool_record);
@@ -153,5 +154,24 @@ shared (msg) actor class Factory() = this {
 
     private func add_pool_record(pool_info : T.PoolRecord) {
         pools := add_pool(pools, pool_info);
+    };
+
+    public shared ({ caller }) func remove_pool(pool_id : Principal) : async [T.PoolRecord] {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        let buff = Buffer.Buffer<T.PoolRecord>(pools.size());
+        label iters for (x in pools.vals()) {
+            if (x.id == pool_id) {
+                continue iters;
+            };
+
+            buff.add(x);
+        };
+
+        pools := Buffer.toArray(buff);
+
+        return pools;
     };
 };
