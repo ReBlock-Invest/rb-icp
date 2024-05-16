@@ -7,9 +7,11 @@ import Nat64 "mo:base/Nat64";
 import Int "mo:base/Int";
 import Blob "mo:base/Blob";
 import ICRC1 "mo:icrc1/ICRC1";
-import Debug "mo:base/Debug";
 import Nat "mo:base/Nat";
+import Nat8 "mo:base/Nat8";
 import Error "mo:base/Error";
+import HashMap "mo:base/HashMap";
+import Iter "mo:base/Iter";
 
 import T "types";
 import Account "Account";
@@ -21,7 +23,17 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     type TransactionStatus = T.TxStatus;
     type PoolTxRecord = T.PoolTxRecord;
 
-    private stable let info : T.PoolInfo = args.info;
+    private func isPrincipalEqual(x : Principal, y : Principal) : Bool {
+        x == y;
+    };
+    private var lenders : HashMap.HashMap<Principal, Nat> = HashMap.HashMap<Principal, Nat>(10, isPrincipalEqual, Principal.hash);
+    private stable var upgrade_lenders : [(Principal, Nat)] = [];
+
+    private stable var info : T.PoolInfo = args.info;
+    private stable var fee : T.FeeArgs = args.fee;
+    private stable var total_fund : Nat = 0;
+    private stable var decimal_offset : Nat8 = 0;
+
     stable let owner : Principal = msg.caller;
     stable let token = ICRC1.init({
         args.token_args with minting_account = Option.get(
@@ -47,13 +59,87 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     stable let asset : Principal = args.asset;
     private stable var pool_ops : [PoolTxRecord] = [genesis];
 
-    // ===== POOL INFORMATION =====
+    // ===== POOL INFORMATION ===== //
 
     public query func get_info() : async T.PoolInfo {
         return info;
     };
 
-    // ===== ICRC1 TOKEN STANDARD =====
+    public shared ({ caller }) func set_info(new_info : T.PoolInfo) : async T.PoolInfo {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        info := new_info;
+        return info;
+    };
+
+    public query func get_fee() : async T.FeeArgs {
+        return fee;
+    };
+
+    public shared ({ caller }) func set_fee(new_fee : T.FeeArgs) : async T.FeeArgs {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        fee := new_fee;
+        return fee;
+    };
+
+    public shared func fee_calc(amount : Nat) : async Nat {
+        return (amount * fee.fee) / fee.fee_basis_point;
+    };
+
+    public shared func get_decimal_offset() : async Nat8 {
+        return decimal_offset;
+    };
+
+    public shared ({ caller }) func set_decimal_offset(decimal : Nat8) : async Nat8 {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        decimal_offset := decimal;
+        return decimal_offset;
+    };
+
+    public query func get_asset() : async Principal {
+        return asset;
+    };
+
+    public query func get_total_fund() : async Nat {
+        return total_fund;
+    };
+
+    public shared query func balance_of(lender : Principal) : async Nat {
+        switch (lenders.get(lender)) {
+            case (null) {
+                return 0;
+            };
+            case (?amount) {
+                return amount;
+            };
+        };
+    };
+
+    public shared func convert_to_shares(amount : Nat) : async Nat {
+        let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
+        let balance = await dip20.balanceOf(Principal.fromActor(this));
+        let supply = await icrc1_total_supply();
+
+        return (amount * (supply + Nat.pow(10, Nat8.toNat(decimal_offset)))) / (balance + 1);
+    };
+
+    public shared func convert_to_assets(amount : Nat) : async Nat {
+        let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
+        let balance = await dip20.balanceOf(Principal.fromActor(this));
+        let supply = await icrc1_total_supply();
+
+        return (amount * (balance + 1)) / (supply + Nat.pow(10, Nat8.toNat(decimal_offset)));
+    };
+
+    // ===== ICRC1 TOKEN STANDARD ===== //
 
     public shared query func icrc1_name() : async Text {
         ICRC1.name(token);
@@ -64,7 +150,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     };
 
     public shared query func icrc1_decimals() : async Nat8 {
-        ICRC1.decimals(token);
+        ICRC1.decimals(token) + decimal_offset;
     };
 
     public shared query func icrc1_fee() : async ICRC1.Balance {
@@ -111,7 +197,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         await* ICRC1.get_transaction(token, i);
     };
 
-    // ===== TRANSACTIONS =====
+    // ===== TRANSACTIONS ===== //
 
     private func pool_add(arr : [PoolTxRecord], data : PoolTxRecord) : [PoolTxRecord] {
         let buff = Buffer.Buffer<PoolTxRecord>(arr.size());
@@ -182,14 +268,10 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         return res;
     };
 
-    // ===== LENDING FUNCTIONS =====
+    // ===== LENDING FUNCTIONS ===== //
 
     public func get_borrower() : async [Principal] {
         borrowers;
-    };
-
-    public func get_asset() : async Principal {
-        asset;
     };
 
     public shared (msg) func get_deposit_address() : async Text {
@@ -206,19 +288,20 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         // cast token to actor
         let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
         let dip_fee = await fetch_dip_fee(asset);
-        let total : Nat = amount - dip_fee;
+        let protocol_fee = await fee_calc(amount);
+        let total : Nat = amount - dip_fee - protocol_fee;
+        let new_shares = await convert_to_shares(total);
 
-        // Check DIP20 allowance
+        // check DIP20 allowance
         let balance : Nat = (await dip20.allowance(caller, Principal.fromActor(this)));
 
-        // Transfer to account.
+        // transfer fund to pool.
         let token_receipt = if (balance >= amount) {
             await dip20.transferFrom(caller, Principal.fromActor(this), amount);
         } else {
             return #Err(#BalanceLow);
         };
 
-        Debug.print(debug_show (token_receipt));
         switch token_receipt {
             case (#Err e) {
                 return #Err(#TransferFailure);
@@ -226,10 +309,26 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
             case _ {};
         };
 
+        // transfer fee to treasury
+        if (protocol_fee > dip_fee) {
+            let _ = await dip20.transfer(fee.treasury, protocol_fee);
+        };
+
+        switch (lenders.get(caller)) {
+            case (null) {
+                lenders.put(caller, total);
+            };
+            case (?old_fund) {
+                lenders.put(caller, old_fund + total);
+            };
+        };
+
+        total_fund := total_fund + total;
+
         let trx_receipt = await* ICRC1.transfer(
             token,
             {
-                amount = total;
+                amount = new_shares;
                 created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
                 fee = null;
                 from_subaccount = null;
@@ -239,7 +338,6 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
             token.minting_account.owner,
         );
 
-        Debug.print(debug_show (trx_receipt));
         switch trx_receipt {
             case (#Err _) {
                 return #Err(#TransferFailure);
@@ -249,7 +347,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
 
         let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount, dip_fee, Time.now(), #succeeded);
 
-        #Ok(total);
+        #Ok(new_shares);
     };
 
     public shared (msg) func drawdown(amount : Nat) : async T.DrawdownReceipt {
@@ -263,8 +361,6 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         let total : Nat = amount - dip_fee;
 
         let receipt = await dip20.transfer(msg.caller, amount);
-
-        Debug.print(debug_show (receipt));
         switch receipt {
             case (#Err _) {
                 return #Err(#TransferFailure);
@@ -292,7 +388,6 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         } else {
             return #Err(#BalanceLow);
         };
-        Debug.print(debug_show (token_receipt));
         switch token_receipt {
             case (#Err e) {
                 return #Err(#TransferFailure);
@@ -320,7 +415,6 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         } else {
             return #Err(#BalanceLow);
         };
-        Debug.print(debug_show (token_receipt));
         switch token_receipt {
             case (#Err e) {
                 return #Err(#TransferFailure);
@@ -341,11 +435,13 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
                 subaccount = ?Account.defaultSubaccount();
             },
         );
-        Debug.print(debug_show (balance));
 
         if (balance < amount) {
             return return #Err(#BalanceLow);
         };
+
+        // calculate asset before burn shares
+        let asset_amount = await convert_to_assets(amount);
 
         let trx_receipt = await* ICRC1.burn(
             token,
@@ -357,8 +453,6 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
             },
             msg.caller,
         );
-
-        Debug.print(debug_show (trx_receipt));
         switch trx_receipt {
             case (#Err _) {
                 return #Err(#TransferFailure);
@@ -366,14 +460,11 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
             case _ {};
         };
 
-        // cast token to actor
         let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
         let dip_fee = await fetch_dip_fee(asset);
-        let total : Nat = amount - dip_fee;
+        let total : Nat = asset_amount - dip_fee;
 
-        let receipt = await dip20.transfer(msg.caller, amount);
-
-        Debug.print(debug_show (receipt));
+        let receipt = await dip20.transfer(msg.caller, total);
         switch receipt {
             case (#Err _) {
                 return #Err(#TransferFailure);
@@ -381,7 +472,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
             case _ {};
         };
 
-        let _txtid = add_pool_record(?msg.caller, #withdraw, Principal.fromActor(this), msg.caller, amount, dip_fee, Time.now(), #succeeded);
+        let _txtid = add_pool_record(?msg.caller, #withdraw, Principal.fromActor(this), msg.caller, total, dip_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };
@@ -431,5 +522,16 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
 
     private func is_borrower(user : Principal) : Bool {
         return Array.find<Principal>(borrowers, func x = x == user) != null;
+    };
+
+    // ===== UPGRADE ===== //
+
+    system func preupgrade() {
+        upgrade_lenders := Iter.toArray(lenders.entries());
+    };
+
+    system func postupgrade() {
+        lenders := HashMap.fromIter<Principal, Nat>(upgrade_lenders.vals(), 10, isPrincipalEqual, Principal.hash);
+        upgrade_lenders := [];
     };
 };

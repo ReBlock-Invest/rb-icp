@@ -1,4 +1,9 @@
 export const idlFactory = ({ IDL }) => {
+  const FeeArgs = IDL.Record({
+    'fee' : IDL.Nat,
+    'fee_basis_point' : IDL.Nat,
+    'treasury' : IDL.Principal,
+  });
   const Time = IDL.Int;
   const PoolInfo = IDL.Record({
     'apr' : IDL.Text,
@@ -40,6 +45,7 @@ export const idlFactory = ({ IDL }) => {
     'symbol' : IDL.Text,
   });
   const PoolArgs = IDL.Record({
+    'fee' : FeeArgs,
     'asset' : IDL.Principal,
     'info' : PoolInfo,
     'token_args' : TokenInitArgs,
@@ -81,11 +87,9 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(PoolRecord)],
         ['query'],
       ),
-    'propose_loan' : IDL.Func([PoolArgs], [], ['oneway']),
     'remove_pool' : IDL.Func([IDL.Principal], [IDL.Vec(PoolRecord)], []),
     'set_pool_cycle' : IDL.Func([IDL.Nat], [IDL.Nat], []),
     'transfer_ownership' : IDL.Func([IDL.Principal], [IDL.Principal], []),
-    'unback_loan' : IDL.Func([IDL.Principal], [IDL.Principal], []),
   });
   return Factory;
 };

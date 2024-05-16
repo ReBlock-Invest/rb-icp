@@ -14,9 +14,8 @@ shared (msg) actor class Factory() = this {
     private stable let ic : IC.Self = actor "aaaaa-aa";
     private stable var pool_cycle : Nat = 1_000_000_000_000;
     private stable var owner : Principal = msg.caller;
-    private stable var proposals : [T.PoolInfo] = [];
 
-    // ===== GOVERNANCE =====
+    // ===== GOVERNANCE ===== //
 
     public shared ({ caller }) func transfer_ownership(new_owner : Principal) : async (Principal) {
         if (caller != owner) {
@@ -44,30 +43,7 @@ shared (msg) actor class Factory() = this {
         return pool_cycle;
     };
 
-    // ===== POOL FACTORY =====
-
-    private func is_valid_proposal(_loan : T.PoolInfo) : Bool {
-
-        return true;
-    };
-
-    private func add_proposal(arr : [T.PoolInfo], data : T.PoolInfo) : [T.PoolInfo] {
-        let buff = Buffer.Buffer<T.PoolInfo>(arr.size());
-        for (x in arr.vals()) {
-            buff.add(x);
-        };
-
-        buff.add(data);
-        return Buffer.toArray(buff);
-    };
-
-    public func propose_loan(args : T.PoolArgs) {
-        if (not is_valid_proposal(args.info)) {
-            throw Error.reject("Invalid Proposal");
-        };
-
-        proposals := add_proposal(proposals, args.info);
-    };
+    // ===== POOL FACTORY ===== //
 
     public shared ({ caller }) func back_loan(args : T.PoolArgs) : async (Principal) {
         if (caller != owner) {
@@ -122,14 +98,6 @@ shared (msg) actor class Factory() = this {
                 return canister_id;
             };
         };
-    };
-
-    public shared ({ caller }) func unback_loan(pool_id : Principal) : async (Principal) {
-        if (caller != owner) {
-            throw Error.reject("Unauthorized");
-        };
-
-        return caller;
     };
 
     private func add_pool(arr : [T.PoolRecord], data : T.PoolRecord) : [T.PoolRecord] {

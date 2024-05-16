@@ -73,6 +73,13 @@ module {
         token_args : ICRC1.TokenInitArgs;
         borrowers : [Principal];
         asset : Principal;
+        fee : FeeArgs;
+    };
+
+    public type FeeArgs = {
+        treasury : Principal;
+        fee_basis_point : Nat;
+        fee : Nat;
     };
 
     public type AssetOperation = {
@@ -171,6 +178,7 @@ module {
         transfer : (Principal, Nat) -> async TxReceipt;
         transferFrom : (Principal, Principal, Nat) -> async TxReceipt;
         allowance : (owner : Principal, spender : Principal) -> async Nat;
+        balanceOf : (who : Principal) -> async Nat;
         getMetadata : () -> async Metadata;
     };
 

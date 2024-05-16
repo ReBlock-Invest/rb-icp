@@ -17,13 +17,17 @@ export interface Factory {
   'get_owner' : ActorMethod<[], Principal>,
   'get_pool_cycle' : ActorMethod<[], bigint>,
   'get_pools' : ActorMethod<[bigint, bigint], Array<PoolRecord>>,
-  'propose_loan' : ActorMethod<[PoolArgs], undefined>,
   'remove_pool' : ActorMethod<[Principal], Array<PoolRecord>>,
   'set_pool_cycle' : ActorMethod<[bigint], bigint>,
   'transfer_ownership' : ActorMethod<[Principal], Principal>,
-  'unback_loan' : ActorMethod<[Principal], Principal>,
+}
+export interface FeeArgs {
+  'fee' : bigint,
+  'fee_basis_point' : bigint,
+  'treasury' : Principal,
 }
 export interface PoolArgs {
+  'fee' : FeeArgs,
   'asset' : Principal,
   'info' : PoolInfo,
   'token_args' : TokenInitArgs,

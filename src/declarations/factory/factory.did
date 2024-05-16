@@ -66,8 +66,15 @@ type PoolArgs =
  record {
    asset: principal;
    borrowers: vec principal;
+   fee: FeeArgs;
    info: PoolInfo;
    token_args: TokenInitArgs;
+ };
+type FeeArgs = 
+ record {
+   fee: nat;
+   fee_basis_point: nat;
+   treasury: principal;
  };
 type Factory = 
  service {
@@ -75,11 +82,9 @@ type Factory =
    get_owner: () -> (principal) query;
    get_pool_cycle: () -> (nat) query;
    get_pools: (nat, nat) -> (vec PoolRecord) query;
-   propose_loan: (PoolArgs) -> () oneway;
    remove_pool: (principal) -> (vec PoolRecord);
    set_pool_cycle: (nat) -> (nat);
    transfer_ownership: (principal) -> (principal);
-   unback_loan: (principal) -> (principal);
  };
 type Balance = nat;
 type AdvancedSettings = 
