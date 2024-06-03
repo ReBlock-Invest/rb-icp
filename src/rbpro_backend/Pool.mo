@@ -144,19 +144,54 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
     };
 
     public shared func convert_to_shares(amount : Nat) : async Nat {
-        let dip20 = actor (Principal.toText(asset)) : DIPInterface;
-        let balance = await dip20.balanceOf(Principal.fromActor(this));
-        let supply = await icrc1_total_supply();
+        // todo: support multiple standards
+        let shares : Nat = switch (await is_icrc2(asset)) {
+            case (true) {
+                let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
+                let account = {
+                    owner = Principal.fromActor(this);
+                    subaccount = null;
+                };
+                let balance = await icrc.icrc1_balance_of(account);
+                let supply = await icrc1_total_supply();
 
-        return (amount * (supply + Nat.pow(10, Nat8.toNat(decimal_offset)))) / (balance + 1);
+                (amount * (supply + Nat.pow(10, Nat8.toNat(decimal_offset)))) / (balance + 1);
+            };
+            case (_) {
+                let dip20 = actor (Principal.toText(asset)) : DIPInterface;
+                let balance = await dip20.balanceOf(Principal.fromActor(this));
+                let supply = await icrc1_total_supply();
+
+                (amount * (supply + Nat.pow(10, Nat8.toNat(decimal_offset)))) / (balance + 1);
+            };
+        };
+
+        return shares;
     };
 
     public shared func convert_to_assets(amount : Nat) : async Nat {
-        let dip20 = actor (Principal.toText(asset)) : DIPInterface;
-        let balance = await dip20.balanceOf(Principal.fromActor(this));
-        let supply = await icrc1_total_supply();
+        let asset_amount : Nat = switch (await is_icrc2(asset)) {
+            case (true) {
+                let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
+                let account = {
+                    owner = Principal.fromActor(this);
+                    subaccount = null;
+                };
+                let balance = await icrc.icrc1_balance_of(account);
+                let supply = await icrc1_total_supply();
 
-        return (amount * (balance + 1)) / (supply + Nat.pow(10, Nat8.toNat(decimal_offset)));
+                (amount * (balance + 1)) / (supply + Nat.pow(10, Nat8.toNat(decimal_offset)));
+            };
+            case (_) {
+                let dip20 = actor (Principal.toText(asset)) : DIPInterface;
+                let balance = await dip20.balanceOf(Principal.fromActor(this));
+                let supply = await icrc1_total_supply();
+
+                (amount * (balance + 1)) / (supply + Nat.pow(10, Nat8.toNat(decimal_offset)));
+            };
+        };
+
+        return asset_amount;
     };
 
     // ===== ICRC1 TOKEN STANDARD ===== //
@@ -300,7 +335,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
     };
 
     public shared (msg) func deposit(amount : Nat) : async T.DepositReceipt {
-        if (await is_icrc2(loan.asset)) {
+        if (await is_icrc2(asset)) {
             await deposit_icrc(msg.caller, amount);
         } else {
             await deposit_dip(msg.caller, amount);
