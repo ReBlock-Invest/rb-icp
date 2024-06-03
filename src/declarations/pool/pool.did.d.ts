@@ -43,7 +43,12 @@ export type DrawdownErr = { 'TransferFailure' : null } |
   { 'BalanceLow' : null };
 export type DrawdownReceipt = { 'Ok' : bigint } |
   { 'Err' : DrawdownErr };
-export interface FeeArgs {
+export interface Fee {
+  'fee' : bigint,
+  'fee_basis_point' : bigint,
+  'treasury' : Principal,
+}
+export interface Fee__1 {
   'fee' : bigint,
   'fee_basis_point' : bigint,
   'treasury' : Principal,
@@ -59,6 +64,43 @@ export interface GetTransactionsResponse {
   'transactions' : Array<Transaction>,
   'archived_transactions' : Array<ArchivedTransaction>,
 }
+export interface InitPool {
+  'fee' : Fee,
+  'loan' : Loan,
+  'token_args' : TokenInitArgs,
+}
+export interface Loan {
+  'principle_schedule' : Array<bigint>,
+  'status' : [] | [LoanStatus],
+  'asset' : Principal,
+  'finder_fee' : bigint,
+  'info' : LoanInfo,
+  'total_loan_amount' : bigint,
+  'maturity_date' : Time,
+  'principle_payment_deadline' : Array<Time>,
+  'late_fee' : bigint,
+  'interest_rate' : bigint,
+  'interest_schedule' : Array<bigint>,
+  'index' : [] | [bigint],
+  'fundrise_end_time' : Time,
+  'origination_date' : Time,
+  'borrowers' : Array<Principal>,
+  'interest_payment_deadline' : Array<Time>,
+}
+export interface LoanInfo {
+  'apr' : string,
+  'title' : string,
+  'issuer_picture' : string,
+  'payment_frequency' : string,
+  'description' : string,
+  'loan_term' : string,
+  'issuer_description' : string,
+  'secured_by' : string,
+  'credit_rating' : string,
+}
+export type LoanStatus = { 'active' : null } |
+  { 'approved' : null } |
+  { 'rejected' : null };
 export type MetaDatum = [string, Value];
 export interface Mint {
   'to' : Account,
@@ -84,8 +126,8 @@ export interface Pool {
   'get_borrower' : ActorMethod<[], Array<Principal>>,
   'get_decimal_offset' : ActorMethod<[], number>,
   'get_deposit_address' : ActorMethod<[], string>,
-  'get_fee' : ActorMethod<[], FeeArgs>,
-  'get_info' : ActorMethod<[], PoolInfo>,
+  'get_fee' : ActorMethod<[], Fee__1>,
+  'get_info' : ActorMethod<[], PoolRecord>,
   'get_pool_transaction' : ActorMethod<[bigint], PoolTxRecord>,
   'get_pool_transactions' : ActorMethod<[bigint, bigint], Array<PoolTxRecord>>,
   'get_total_fund' : ActorMethod<[], bigint>,
@@ -115,32 +157,8 @@ export interface Pool {
   'repay_principal' : ActorMethod<[bigint], RepayPrincipalReceipt>,
   'set_borrower' : ActorMethod<[Principal], undefined>,
   'set_decimal_offset' : ActorMethod<[number], number>,
-  'set_fee' : ActorMethod<[FeeArgs], FeeArgs>,
-  'set_info' : ActorMethod<[PoolInfo], PoolInfo>,
+  'set_fee' : ActorMethod<[Fee__1], Fee__1>,
   'withdraw' : ActorMethod<[bigint], WithdrawReceipt>,
-}
-export interface PoolArgs {
-  'fee' : FeeArgs,
-  'asset' : Principal,
-  'info' : PoolInfo,
-  'token_args' : TokenInitArgs,
-  'borrowers' : Array<Principal>,
-}
-export interface PoolInfo {
-  'apr' : string,
-  'title' : string,
-  'issuer_picture' : string,
-  'smart_contract_url' : string,
-  'total_loan_amount' : string,
-  'payment_frequency' : string,
-  'description' : string,
-  'maturity_date' : Time,
-  'loan_term' : string,
-  'issuer_description' : string,
-  'secured_by' : string,
-  'fundrise_end_time' : Time,
-  'credit_rating' : string,
-  'origination_date' : Time,
 }
 export type PoolOperation = { 'withdraw' : null } |
   { 'init' : null } |
@@ -148,6 +166,31 @@ export type PoolOperation = { 'withdraw' : null } |
   { 'deposit' : null } |
   { 'drawdown' : null } |
   { 'repayInterest' : null };
+export interface PoolRecord {
+  'id' : Principal,
+  'apr' : string,
+  'status' : PoolStatus,
+  'title' : string,
+  'issuer_picture' : string,
+  'smart_contract_url' : string,
+  'total_loan_amount' : bigint,
+  'payment_frequency' : string,
+  'description' : string,
+  'maturity_date' : Time,
+  'loan_term' : string,
+  'issuer_description' : string,
+  'timestamp' : Time,
+  'secured_by' : string,
+  'fundrise_end_time' : Time,
+  'credit_rating' : string,
+  'origination_date' : Time,
+  'borrowers' : Array<Principal>,
+}
+export type PoolStatus = { 'closed' : null } |
+  { 'active' : null } |
+  { 'pending' : null } |
+  { 'open' : null } |
+  { 'default' : null };
 export interface PoolTxRecord {
   'op' : PoolOperation,
   'to' : Principal,

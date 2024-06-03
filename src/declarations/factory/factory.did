@@ -1,3 +1,18 @@
+type TokenInitArgs__1 = 
+ record {
+   advanced_settings: opt AdvancedSettings;
+   decimals: nat8;
+   fee: Balance;
+   initial_balances: vec record {
+                           Account;
+                           Balance;
+                         };
+   max_supply: Balance;
+   min_burn_amount: Balance;
+   minting_account: opt Account;
+   name: text;
+   symbol: text;
+ };
 type TokenInitArgs = 
  record {
    advanced_settings: opt AdvancedSettings;
@@ -16,13 +31,26 @@ type TokenInitArgs =
 type Timestamp = nat64;
 type Time = int;
 type Subaccount = blob;
+type ProposeLoanReceipt = 
+ variant {
+   Err: LoanValidationErr;
+   Ok: Loan__1;
+ };
+type PoolStatus__1 = 
+ variant {
+   active;
+   closed;
+   default;
+   open;
+   pending;
+ };
 type PoolStatus = 
  variant {
    active;
+   closed;
    default;
-   inactive;
+   open;
    pending;
-   upcoming;
  };
 type PoolRecord = 
  record {
@@ -40,37 +68,93 @@ type PoolRecord =
    payment_frequency: text;
    secured_by: text;
    smart_contract_url: text;
-   status: PoolStatus;
+   status: PoolStatus__1;
    timestamp: Time;
    title: text;
-   total_loan_amount: text;
+   total_loan_amount: nat;
  };
-type PoolInfo = 
+type Loan__1 = 
+ record {
+   asset: principal;
+   borrowers: vec principal;
+   finder_fee: nat;
+   fundrise_end_time: Time;
+   index: opt nat;
+   info: LoanInfo;
+   interest_payment_deadline: vec Time;
+   interest_rate: nat;
+   interest_schedule: vec nat;
+   late_fee: nat;
+   maturity_date: Time;
+   origination_date: Time;
+   principle_payment_deadline: vec Time;
+   principle_schedule: vec nat;
+   status: opt LoanStatus;
+   total_loan_amount: nat;
+ };
+type LoanValidationErr = 
+ variant {
+   InvalidInterestPaymentDeadline;
+   InvalidInterestPaymentSchedue;
+   InvalidPrinciplePaymentDeadline;
+   InvalidPrinciplePaymentSchedule;
+   InvalidTotalLoanAmount;
+ };
+type LoanStatus__1 = 
+ variant {
+   active;
+   approved;
+   rejected;
+ };
+type LoanStatus = 
+ variant {
+   active;
+   approved;
+   rejected;
+ };
+type LoanInfo = 
  record {
    apr: text;
    credit_rating: text;
    description: text;
-   fundrise_end_time: Time;
    issuer_description: text;
    issuer_picture: text;
    loan_term: text;
-   maturity_date: Time;
-   origination_date: Time;
    payment_frequency: text;
    secured_by: text;
-   smart_contract_url: text;
    title: text;
-   total_loan_amount: text;
  };
-type PoolArgs = 
+type Loan = 
  record {
    asset: principal;
    borrowers: vec principal;
-   fee: FeeArgs;
-   info: PoolInfo;
-   token_args: TokenInitArgs;
+   finder_fee: nat;
+   fundrise_end_time: Time;
+   index: opt nat;
+   info: LoanInfo;
+   interest_payment_deadline: vec Time;
+   interest_rate: nat;
+   interest_schedule: vec nat;
+   late_fee: nat;
+   maturity_date: Time;
+   origination_date: Time;
+   principle_payment_deadline: vec Time;
+   principle_schedule: vec nat;
+   status: opt LoanStatus;
+   total_loan_amount: nat;
  };
-type FeeArgs = 
+type InitFactory = 
+ record {
+   fee: Fee;
+   pool_token_args: TokenInitArgs;
+ };
+type Fee__1 = 
+ record {
+   fee: nat;
+   fee_basis_point: nat;
+   treasury: principal;
+ };
+type Fee = 
  record {
    fee: nat;
    fee_basis_point: nat;
@@ -78,11 +162,17 @@ type FeeArgs =
  };
 type Factory = 
  service {
-   back_loan: (PoolArgs) -> (principal);
+   back_loan: (nat) -> (principal);
+   get_default_fee: () -> (Fee__1) query;
+   get_default_pool_token_args: () -> (TokenInitArgs__1) query;
+   get_loans: (LoanStatus__1, nat, nat) -> (vec Loan) query;
    get_owner: () -> (principal) query;
    get_pool_cycle: () -> (nat) query;
-   get_pools: (nat, nat) -> (vec PoolRecord) query;
-   remove_pool: (principal) -> (vec PoolRecord);
+   get_pools: (PoolStatus, nat, nat) -> (vec PoolRecord) query;
+   propose_loan: (Loan) -> (ProposeLoanReceipt);
+   reject_loan: (nat) -> (opt Loan);
+   set_default_fee: (Fee__1) -> (Fee__1);
+   set_default_pool_token_args: (TokenInitArgs__1) -> (TokenInitArgs__1);
    set_pool_cycle: (nat) -> (nat);
    transfer_ownership: (principal) -> (principal);
  };
@@ -98,4 +188,4 @@ type Account =
    owner: principal;
    subaccount: opt Subaccount;
  };
-service : () -> Factory
+service : (InitFactory) -> Factory

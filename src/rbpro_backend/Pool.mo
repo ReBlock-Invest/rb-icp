@@ -16,8 +16,16 @@ import Iter "mo:base/Iter";
 import T "types";
 import Account "Account";
 import Hex "hex";
+import ICRC "icrc";
 
-shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = this {
+shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = this {
+
+    type Loan = T.Loan;
+    type Fee = T.Fee;
+    type PoolStatus = T.PoolStatus;
+    type PoolRecord = T.PoolRecord;
+
+    type DIPInterface = T.DIPInterface;
 
     type PoolOperation = T.PoolOperation;
     type TransactionStatus = T.TxStatus;
@@ -29,10 +37,11 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     private var lenders : HashMap.HashMap<Principal, Nat> = HashMap.HashMap<Principal, Nat>(10, isPrincipalEqual, Principal.hash);
     private stable var upgrade_lenders : [(Principal, Nat)] = [];
 
-    private stable var info : T.PoolInfo = args.info;
-    private stable var fee : T.FeeArgs = args.fee;
+    private stable var loan : Loan = args.loan;
+    private stable var fee : Fee = args.fee;
     private stable var total_fund : Nat = 0;
     private stable var decimal_offset : Nat8 = 0;
+    private stable var status : PoolStatus = #pending;
 
     stable let owner : Principal = msg.caller;
     stable let token = ICRC1.init({
@@ -55,16 +64,27 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         timestamp = Time.now();
         status = #succeeded;
     };
-    stable var borrowers : [Principal] = args.borrowers;
-    stable let asset : Principal = args.asset;
+    stable var borrowers : [Principal] = args.loan.borrowers;
+    stable let asset : Principal = args.loan.asset;
     private stable var pool_ops : [PoolTxRecord] = [genesis];
 
     // ===== POOL INFORMATION ===== //
 
-    public query func get_info() : async T.PoolInfo {
-        return info;
+    public query func get_info() : async PoolRecord {
+        return {
+            loan.info with id = Principal.fromActor(this);
+            borrowers = loan.borrowers;
+            fundrise_end_time = loan.fundrise_end_time;
+            maturity_date = loan.maturity_date;
+            origination_date = loan.origination_date;
+            smart_contract_url = Principal.toText(Principal.fromActor(this));
+            total_loan_amount = loan.total_loan_amount;
+            timestamp = genesis.timestamp;
+            status = status;
+        };
     };
 
+    /*
     public shared ({ caller }) func set_info(new_info : T.PoolInfo) : async T.PoolInfo {
         if (caller != owner) {
             throw Error.reject("Unauthorized");
@@ -73,12 +93,12 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         info := new_info;
         return info;
     };
-
-    public query func get_fee() : async T.FeeArgs {
+    */
+    public query func get_fee() : async Fee {
         return fee;
     };
 
-    public shared ({ caller }) func set_fee(new_fee : T.FeeArgs) : async T.FeeArgs {
+    public shared ({ caller }) func set_fee(new_fee : Fee) : async Fee {
         if (caller != owner) {
             throw Error.reject("Unauthorized");
         };
@@ -124,7 +144,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     };
 
     public shared func convert_to_shares(amount : Nat) : async Nat {
-        let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
+        let dip20 = actor (Principal.toText(asset)) : DIPInterface;
         let balance = await dip20.balanceOf(Principal.fromActor(this));
         let supply = await icrc1_total_supply();
 
@@ -132,7 +152,7 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     };
 
     public shared func convert_to_assets(amount : Nat) : async Nat {
-        let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
+        let dip20 = actor (Principal.toText(asset)) : DIPInterface;
         let balance = await dip20.balanceOf(Principal.fromActor(this));
         let supply = await icrc1_total_supply();
 
@@ -280,10 +300,13 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
     };
 
     public shared (msg) func deposit(amount : Nat) : async T.DepositReceipt {
-        await deposit_dip(msg.caller, amount);
+        if (await is_icrc2(loan.asset)) {
+            await deposit_icrc(msg.caller, amount);
+        } else {
+            await deposit_dip(msg.caller, amount);
+        };
     };
 
-    // After user approves tokens to the DEX
     private func deposit_dip(caller : Principal, amount : Nat) : async T.DepositReceipt {
         // cast token to actor
         let dip20 = actor (Principal.toText(asset)) : T.DIPInterface;
@@ -350,6 +373,98 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         #Ok(new_shares);
     };
 
+    private func deposit_icrc(caller : Principal, amount : Nat) : async T.DepositReceipt {
+        // cast token to actor
+        let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
+        let icrc_fee = await fetch_icrc_fee(asset);
+        let protocol_fee = await fee_calc(amount);
+        let total : Nat = amount - icrc_fee - protocol_fee;
+        let new_shares = await convert_to_shares(total);
+
+        // check ICRC-2 allowance
+        let account : ICRC.Account = { owner = caller; subaccount = null };
+        let spender : ICRC.Account = {
+            owner = Principal.fromActor(this);
+            subaccount = null;
+        };
+        let balance : ICRC.Allowance = await icrc.icrc2_allowance({
+            account;
+            spender;
+        });
+
+        // transfer fund to pool.
+        let token_receipt = if (balance.allowance >= amount) {
+            let transfer_args : ICRC.TransferFromArgs = {
+                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+                spender_subaccount = null;
+                from = account;
+                to = spender;
+                amount = amount;
+                fee = null;
+                memo = null;
+            };
+            // handle transfer result
+            await icrc.icrc2_transfer_from(transfer_args);
+        } else {
+            return #Err(#BalanceLow);
+        };
+
+        switch token_receipt {
+            case (#Err e) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        // transfer fee to treasury
+        if (protocol_fee > icrc_fee) {
+            let transfer_args : ICRC.TransferArg = {
+                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+                from_subaccount = null;
+                to = { owner = fee.treasury; subaccount = null };
+                amount = protocol_fee;
+                fee = null;
+                memo = null;
+            };
+            let _ = await icrc.icrc1_transfer(transfer_args);
+        };
+
+        switch (lenders.get(caller)) {
+            case (null) {
+                lenders.put(caller, total);
+            };
+            case (?old_fund) {
+                lenders.put(caller, old_fund + total);
+            };
+        };
+
+        total_fund := total_fund + total;
+
+        let trx_receipt = await* ICRC1.transfer(
+            token,
+            {
+                amount = new_shares;
+                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+                fee = null;
+                from_subaccount = null;
+                memo = null;
+                to = { owner = caller; subaccount = null };
+            },
+            token.minting_account.owner,
+        );
+
+        switch trx_receipt {
+            case (#Err _) {
+                return #Err(#TransferFailure);
+            };
+            case _ {};
+        };
+
+        let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount, icrc_fee, Time.now(), #succeeded);
+
+        #Ok(new_shares);
+    };
+
     public shared (msg) func drawdown(amount : Nat) : async T.DrawdownReceipt {
         if (not is_borrower(msg.caller)) {
             return #Err(#NotAuthorized);
@@ -379,10 +494,10 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         let dip_fee = await fetch_dip_fee(asset);
         let total : Nat = amount - dip_fee;
 
-        // Check DIP20 allowance
+        // check DIP20 allowance
         let balance : Nat = (await dip20.allowance(msg.caller, Principal.fromActor(this)));
 
-        // Transfer to account.
+        // transfer to account.
         let token_receipt = if (balance >= amount) {
             await dip20.transferFrom(msg.caller, Principal.fromActor(this), amount);
         } else {
@@ -406,10 +521,10 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         let dip_fee = await fetch_dip_fee(asset);
         let total : Nat = amount - dip_fee;
 
-        // Check DIP20 allowance
+        // check DIP20 allowance
         let balance : Nat = (await dip20.allowance(msg.caller, Principal.fromActor(this)));
 
-        // Transfer to account.
+        // transfer to account.
         let token_receipt = if (balance >= amount) {
             await dip20.transferFrom(msg.caller, Principal.fromActor(this), amount);
         } else {
@@ -481,6 +596,25 @@ shared (msg) actor class Pool(args : T.PoolArgs) : async ICRC1.FullInterface = t
         let dip20 = actor (Principal.toText(token)) : T.DIPInterface;
         let metadata = await dip20.getMetadata();
         metadata.fee;
+    };
+
+    private func fetch_icrc_fee(token : Principal) : async Nat {
+        let icrc = actor (Principal.toText(token)) : ICRC.Actor;
+        let fee = await icrc.icrc1_fee();
+        fee;
+    };
+
+    private func is_icrc2(token : Principal) : async Bool {
+        let icrc = actor (Principal.toText(token)) : ICRC.Actor;
+        let standards = await icrc.icrc1_supported_standards();
+        var found : Bool = false;
+        for (x in standards.vals()) {
+            if (x.name == "ICRC-2") {
+                found := true;
+            };
+        };
+
+        return found;
     };
 
     public shared (msg) func set_borrower(n_borrower : Principal) {

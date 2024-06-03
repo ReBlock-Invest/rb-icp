@@ -135,21 +135,22 @@ type PoolTxRecord =
    timestamp: Time;
    to: principal;
  };
-type PoolOperation = 
+type PoolStatus = 
  variant {
-   deposit;
-   drawdown;
-   init;
-   repayInterest;
-   repayPrincipal;
-   withdraw;
+   active;
+   closed;
+   default;
+   open;
+   pending;
  };
-type PoolInfo = 
+type PoolRecord = 
  record {
    apr: text;
+   borrowers: vec principal;
    credit_rating: text;
    description: text;
    fundrise_end_time: Time;
+   id: principal;
    issuer_description: text;
    issuer_picture: text;
    loan_term: text;
@@ -158,16 +159,19 @@ type PoolInfo =
    payment_frequency: text;
    secured_by: text;
    smart_contract_url: text;
+   status: PoolStatus;
+   timestamp: Time;
    title: text;
-   total_loan_amount: text;
+   total_loan_amount: nat;
  };
-type PoolArgs = 
- record {
-   asset: principal;
-   borrowers: vec principal;
-   fee: FeeArgs;
-   info: PoolInfo;
-   token_args: TokenInitArgs;
+type PoolOperation = 
+ variant {
+   deposit;
+   drawdown;
+   init;
+   repayInterest;
+   repayPrincipal;
+   withdraw;
  };
 type Pool = 
  service {
@@ -182,8 +186,8 @@ type Pool =
    get_borrower: () -> (vec principal);
    get_decimal_offset: () -> (nat8);
    get_deposit_address: () -> (text);
-   get_fee: () -> (FeeArgs) query;
-   get_info: () -> (PoolInfo) query;
+   get_fee: () -> (Fee__1) query;
+   get_info: () -> (PoolRecord) query;
    get_pool_transaction: (nat) -> (PoolTxRecord) query;
    get_pool_transactions: (nat, nat) -> (vec PoolTxRecord) query;
    get_total_fund: () -> (nat) query;
@@ -208,8 +212,7 @@ type Pool =
    repay_principal: (nat) -> (RepayPrincipalReceipt);
    set_borrower: (principal) -> () oneway;
    set_decimal_offset: (nat8) -> (nat8);
-   set_fee: (FeeArgs) -> (FeeArgs);
-   set_info: (PoolInfo) -> (PoolInfo);
+   set_fee: (Fee__1) -> (Fee__1);
    withdraw: (nat) -> (WithdrawReceipt);
  };
 type Mint__1 = 
@@ -231,6 +234,49 @@ type MetaDatum =
    text;
    Value;
  };
+type LoanStatus = 
+ variant {
+   active;
+   approved;
+   rejected;
+ };
+type LoanInfo = 
+ record {
+   apr: text;
+   credit_rating: text;
+   description: text;
+   issuer_description: text;
+   issuer_picture: text;
+   loan_term: text;
+   payment_frequency: text;
+   secured_by: text;
+   title: text;
+ };
+type Loan = 
+ record {
+   asset: principal;
+   borrowers: vec principal;
+   finder_fee: nat;
+   fundrise_end_time: Time;
+   index: opt nat;
+   info: LoanInfo;
+   interest_payment_deadline: vec Time;
+   interest_rate: nat;
+   interest_schedule: vec nat;
+   late_fee: nat;
+   maturity_date: Time;
+   origination_date: Time;
+   principle_payment_deadline: vec Time;
+   principle_schedule: vec nat;
+   status: opt LoanStatus;
+   total_loan_amount: nat;
+ };
+type InitPool = 
+ record {
+   fee: Fee;
+   loan: Loan;
+   token_args: TokenInitArgs;
+ };
 type GetTransactionsResponse = 
  record {
    archived_transactions: vec ArchivedTransaction;
@@ -248,7 +294,13 @@ type GetTransactionsRequest =
    length: nat;
    start: TxIndex;
  };
-type FeeArgs = 
+type Fee__1 = 
+ record {
+   fee: nat;
+   fee_basis_point: nat;
+   treasury: principal;
+ };
+type Fee = 
  record {
    fee: nat;
    fee_basis_point: nat;
@@ -313,4 +365,4 @@ type Account =
    owner: principal;
    subaccount: opt Subaccount;
  };
-service : (PoolArgs) -> Pool
+service : (InitPool) -> Pool

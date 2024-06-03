@@ -1,18 +1,44 @@
 import Cycles "mo:base/ExperimentalCycles";
 import Principal "mo:base/Principal";
+import TrieMap "mo:base/TrieMap";
+import Nat "mo:base/Nat";
+import Hash "mo:base/Hash";
+import Iter "mo:base/Iter";
 import Error "mo:base/Error";
-import Buffer "mo:base/Buffer";
 import Time "mo:base/Time";
+import Buffer "mo:base/Buffer";
+import ICRC1 "mo:icrc1/ICRC1";
 
 import IC "ic.types";
 import T "types";
 import Pool "Pool";
 
-shared (msg) actor class Factory() = this {
+shared (msg) actor class Factory(args : T.InitFactory) = this {
 
-    private stable var pools : [T.PoolRecord] = [];
-    private stable let ic : IC.Self = actor "aaaaa-aa";
+    type Loan = T.Loan;
+    type LoanStatus = T.LoanStatus;
+
+    type PoolRecord = T.PoolRecord;
+    type PoolStatus = T.PoolStatus;
+
+    type Fee = T.Fee;
+    type TokenInitArgs = ICRC1.TokenInitArgs;
+
+    type LoanValidationErr = T.LoanValidationErr;
+    type LoanValidation = T.LoanValidation;
+    type ProposeLoanReceipt = T.ProposeLoanReceipt;
+
+    private var loans : TrieMap.TrieMap<Nat, Loan> = TrieMap.TrieMap<Nat, Loan>(Nat.equal, Hash.hash);
+    private var pools : TrieMap.TrieMap<Nat, PoolRecord> = TrieMap.TrieMap<Nat, PoolRecord>(Nat.equal, Hash.hash);
+
+    // ===== STABLE DATA ===== //
+
+    private stable var upgrade_loans : [(Nat, Loan)] = [];
+    private stable var upgrade_pools : [(Nat, PoolRecord)] = [];
+    private stable let ic : IC.Self = actor "aaaaa-aa"; // management canister id
     private stable var pool_cycle : Nat = 1_000_000_000_000;
+    private stable var fee : Fee = args.fee;
+    private stable var pool_token_args : TokenInitArgs = args.pool_token_args;
     private stable var owner : Principal = msg.caller;
 
     // ===== GOVERNANCE ===== //
@@ -43,15 +69,191 @@ shared (msg) actor class Factory() = this {
         return pool_cycle;
     };
 
-    // ===== POOL FACTORY ===== //
-
-    public shared ({ caller }) func back_loan(args : T.PoolArgs) : async (Principal) {
+    public shared ({ caller }) func set_default_fee(f : Fee) : async Fee {
         if (caller != owner) {
             throw Error.reject("Unauthorized");
         };
 
+        fee := f;
+        return fee;
+    };
+
+    public shared query func get_default_fee() : async Fee {
+        return fee;
+    };
+
+    public shared ({ caller }) func set_default_pool_token_args(args : TokenInitArgs) : async TokenInitArgs {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        pool_token_args := args;
+        return pool_token_args;
+    };
+
+    public shared query func get_default_pool_token_args() : async TokenInitArgs {
+        return pool_token_args;
+    };
+
+    // ===== LOAN ===== //
+
+    private func is_valid_loan(loan : Loan) : LoanValidation {
+        if (loan.principle_schedule.size() != loan.principle_payment_deadline.size()) {
+            return #Err(#InvalidPrinciplePaymentSchedule);
+        };
+
+        if (loan.interest_schedule.size() != loan.interest_payment_deadline.size()) {
+            return #Err(#InvalidInterestPaymentSchedue);
+        };
+
+        var total_payment : Nat = 0;
+        for (amount in loan.principle_schedule.vals()) {
+            total_payment += amount;
+        };
+
+        if (total_payment < loan.total_loan_amount) {
+            return #Err(#InvalidTotalLoanAmount);
+        };
+
+        var t : Time.Time = Time.now();
+        for (pt in loan.principle_payment_deadline.vals()) {
+            if (t > pt) {
+                return #Err(#InvalidPrinciplePaymentDeadline);
+            };
+
+            t := pt;
+        };
+
+        t := Time.now();
+        for (it in loan.interest_payment_deadline.vals()) {
+            if (t > it) {
+                return #Err(#InvalidInterestPaymentDeadline);
+            };
+
+            t := it;
+        };
+
+        return #Ok;
+    };
+
+    public shared func propose_loan(loan : Loan) : async ProposeLoanReceipt {
+        switch (is_valid_loan(loan)) {
+            case (#Err(error)) {
+                return #Err(error);
+            };
+            case (#Ok) {};
+        };
+
+        let index = loans.size() + 1;
+        loans.put(
+            index,
+            {
+                loan with index = ?index;
+                status = ? #active;
+            },
+        );
+
+        let new_loan = switch (loans.get(index)) {
+            case (?result) {
+                result;
+            };
+            case (null) {
+                throw Error.reject("LoanNotFound");
+            };
+        };
+
+        return #Ok(new_loan);
+    };
+
+    public query func get_loans(status : LoanStatus, start : Nat, limit : Nat) : async [Loan] {
+        let f_loans = TrieMap.mapFilter<Nat, Loan, Loan>(
+            loans,
+            Nat.equal,
+            Hash.hash,
+            func(key, value) = if (value.status == ?status) { ?value } else {
+                null;
+            },
+        );
+
+        let o_loans : [Loan] = Iter.toArray(f_loans.vals());
+        var n_loans : [Loan] = [];
+        var i = start;
+        while (i < start + limit and i < o_loans.size()) {
+            n_loans := add_loan(n_loans, o_loans[i]);
+            i += 1;
+        };
+
+        return n_loans;
+    };
+
+    private func add_loan(arr : [Loan], data : Loan) : [Loan] {
+        let buff = Buffer.Buffer<Loan>(arr.size());
+        for (x in arr.vals()) {
+            buff.add(x);
+        };
+
+        buff.add(data);
+        return Buffer.toArray(buff);
+    };
+
+    public shared ({ caller }) func reject_loan(index : Nat) : async (?Loan) {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        switch (loans.get(index)) {
+            case (null) {
+                throw Error.reject("Not Found");
+            };
+            case (?loan) {
+                loans.put(
+                    index,
+                    {
+                        loan with status = ? #rejected;
+                    },
+                );
+
+                return loans.get(index);
+            };
+        };
+    };
+
+    // ===== POOL FACTORY ===== //
+
+    public shared ({ caller }) func back_loan(index : Nat) : async (Principal) {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        let loan : Loan = switch (loans.get(index)) {
+            case (null) {
+                throw Error.reject("Not Found");
+            };
+            case (?l) {
+                if (l.status == ? #active) {
+                    l;
+                } else {
+                    throw Error.reject("Inactive Loan");
+                };
+            };
+        };
+
+        loans.put(
+            index,
+            {
+                loan with status = ? #approved;
+            },
+        );
+
         Cycles.add<system>(pool_cycle);
-        let pool = await Pool.Pool(args);
+        let pool = await Pool.Pool({
+            loan = loan;
+            fee = fee;
+            token_args = {
+                pool_token_args with name = loan.info.title # " Token";
+                symbol = "RB" # Nat.toText(index);
+            };
+        });
         let canister_id = ?(Principal.fromActor(pool));
 
         switch (canister_id) {
@@ -72,36 +274,57 @@ shared (msg) actor class Factory() = this {
                     };
                 });
 
-                let pool_record : T.PoolRecord = {
+                let pool_record : PoolRecord = {
                     id = canister_id;
-                    borrowers = args.borrowers;
-                    apr = args.info.apr;
-                    credit_rating = args.info.credit_rating;
-                    description = args.info.description;
-                    fundrise_end_time = args.info.fundrise_end_time;
-                    issuer_description = args.info.issuer_description;
-                    issuer_picture = args.info.issuer_picture;
-                    loan_term = args.info.loan_term;
-                    maturity_date = args.info.maturity_date;
-                    origination_date = args.info.origination_date;
-                    payment_frequency = args.info.payment_frequency;
-                    secured_by = args.info.secured_by;
-                    smart_contract_url = args.info.smart_contract_url # Principal.toText(canister_id);
-                    title = args.info.title;
-                    total_loan_amount = args.info.total_loan_amount;
+                    borrowers = loan.borrowers;
+                    apr = loan.info.apr;
+                    credit_rating = loan.info.credit_rating;
+                    description = loan.info.description;
+                    fundrise_end_time = loan.fundrise_end_time;
+                    issuer_description = loan.info.issuer_description;
+                    issuer_picture = loan.info.issuer_picture;
+                    loan_term = loan.info.loan_term;
+                    maturity_date = loan.maturity_date;
+                    origination_date = loan.origination_date;
+                    payment_frequency = loan.info.payment_frequency;
+                    secured_by = loan.info.secured_by;
+                    smart_contract_url = Principal.toText(canister_id);
+                    title = loan.info.title;
+                    total_loan_amount = loan.total_loan_amount;
                     timestamp = Time.now();
                     status = #active;
                 };
 
-                add_pool_record(pool_record);
+                pools.put(index, pool_record);
 
                 return canister_id;
             };
         };
     };
 
-    private func add_pool(arr : [T.PoolRecord], data : T.PoolRecord) : [T.PoolRecord] {
-        let buff = Buffer.Buffer<T.PoolRecord>(arr.size());
+    public query func get_pools(status : PoolStatus, start : Nat, limit : Nat) : async [PoolRecord] {
+        let f_pools = TrieMap.mapFilter<Nat, PoolRecord, PoolRecord>(
+            pools,
+            Nat.equal,
+            Hash.hash,
+            func(key, value) = if (value.status == status) { ?value } else {
+                null;
+            },
+        );
+
+        let o_pools : [PoolRecord] = Iter.toArray(f_pools.vals());
+        var n_pools : [PoolRecord] = [];
+        var i = start;
+        while (i < start + limit and i < o_pools.size()) {
+            n_pools := add_pool(n_pools, o_pools[i]);
+            i += 1;
+        };
+
+        return n_pools;
+    };
+
+    private func add_pool(arr : [PoolRecord], data : PoolRecord) : [PoolRecord] {
+        let buff = Buffer.Buffer<PoolRecord>(arr.size());
         for (x in arr.vals()) {
             buff.add(x);
         };
@@ -110,36 +333,15 @@ shared (msg) actor class Factory() = this {
         return Buffer.toArray(buff);
     };
 
-    public query func get_pools(start : Nat, limit : Nat) : async [T.PoolRecord] {
-        var ret : [T.PoolRecord] = [];
-        var i = start;
-        while (i < start + limit and i < pools.size()) {
-            ret := add_pool(ret, pools[i]);
-            i += 1;
-        };
-        return ret;
+    // ===== UPGRADE ===== /
+
+    system func preupgrade() {
+        upgrade_loans := Iter.toArray(loans.entries());
+        upgrade_pools := Iter.toArray(pools.entries());
     };
 
-    private func add_pool_record(pool_info : T.PoolRecord) {
-        pools := add_pool(pools, pool_info);
-    };
-
-    public shared ({ caller }) func remove_pool(pool_id : Principal) : async [T.PoolRecord] {
-        if (caller != owner) {
-            throw Error.reject("Unauthorized");
-        };
-
-        let buff = Buffer.Buffer<T.PoolRecord>(pools.size());
-        label iters for (x in pools.vals()) {
-            if (x.id == pool_id) {
-                continue iters;
-            };
-
-            buff.add(x);
-        };
-
-        pools := Buffer.toArray(buff);
-
-        return pools;
+    system func postupgrade() {
+        loans := TrieMap.fromEntries<Nat, Loan>(upgrade_loans.vals(), Nat.equal, Hash.hash);
+        pools := TrieMap.fromEntries<Nat, PoolRecord>(upgrade_pools.vals(), Nat.equal, Hash.hash);
     };
 };

@@ -9,77 +9,79 @@ module {
         amount : Nat;
     };
 
-    public type PoolStatus = {
-        #pending;
-        #upcoming;
-        #active;
-        #default;
-        #inactive;
-    };
-
-    public type Proposal = {
-        borrowers : [Principal];
-        apr : Text;
-        credit_rating : Text;
-        description : Text;
-        fundrise_end_time : Time.Time;
-        issuer_description : Text;
-        issuer_picture : Text;
-        loan_term : Text;
-        maturity_date : Time.Time;
-        origination_date : Time.Time;
-        payment_frequency : Text;
-        secured_by : Text;
-        title : Text;
-        total_loan_amount : Text;
-    };
-
-    public type ProposalRecord = {
-        borrowers : [Principal];
-        apr : Text;
-        credit_rating : Text;
-        description : Text;
-        fundrise_end_time : Time.Time;
-        issuer_description : Text;
-        issuer_picture : Text;
-        loan_term : Text;
-        maturity_date : Time.Time;
-        origination_date : Time.Time;
-        payment_frequency : Text;
-        secured_by : Text;
-        title : Text;
-        total_loan_amount : Text;
-    };
-
-    public type PoolInfo = {
-        apr : Text;
-        credit_rating : Text;
-        description : Text;
-        fundrise_end_time : Time.Time;
-        issuer_description : Text;
-        issuer_picture : Text;
-        loan_term : Text;
-        maturity_date : Time.Time;
-        origination_date : Time.Time;
-        payment_frequency : Text;
-        secured_by : Text;
-        smart_contract_url : Text;
-        title : Text;
-        total_loan_amount : Text;
-    };
-
-    public type PoolArgs = {
-        info : PoolInfo;
-        token_args : ICRC1.TokenInitArgs;
-        borrowers : [Principal];
-        asset : Principal;
-        fee : FeeArgs;
-    };
-
-    public type FeeArgs = {
+    public type Fee = {
         treasury : Principal;
         fee_basis_point : Nat;
         fee : Nat;
+    };
+
+    // ===== FACTORY ===== //
+
+    public type InitFactory = {
+        fee : Fee;
+        pool_token_args : ICRC1.TokenInitArgs;
+    };
+
+    // ===== LOAN ===== //
+
+    public type LoanStatus = {
+        #active;
+        #rejected;
+        #approved;
+    };
+
+    public type Loan = {
+        index : ?Nat;
+        borrowers : [Principal];
+        asset : Principal;
+        total_loan_amount : Nat;
+        principle_schedule : [Nat];
+        interest_schedule : [Nat];
+        principle_payment_deadline : [Time.Time];
+        interest_payment_deadline : [Time.Time];
+        interest_rate : Nat;
+        finder_fee : Nat;
+        late_fee : Nat;
+        status : ?LoanStatus;
+        fundrise_end_time : Time.Time;
+        origination_date : Time.Time;
+        maturity_date : Time.Time;
+        info : LoanInfo;
+    };
+
+    public type LoanInfo = {
+        title : Text;
+        description : Text;
+        issuer_description : Text;
+        issuer_picture : Text;
+        apr : Text;
+        credit_rating : Text;
+        loan_term : Text;
+        payment_frequency : Text;
+        secured_by : Text;
+    };
+
+    // ===== POOL ===== //
+
+    public type PoolStatus = {
+        #pending;
+        #open;
+        #active;
+        #default;
+        #closed;
+    };
+
+    public type Pool = {
+        time_open : Time.Time;
+        deposit_deadline : Time.Time;
+        token_args : ICRC1.TokenInitArgs;
+        status : ?PoolStatus;
+    };
+
+    public type InitPool = {
+        loan : Loan;
+        fee : Fee;
+        token_args : ICRC1.TokenInitArgs;
     };
 
     public type AssetOperation = {
@@ -119,7 +121,7 @@ module {
         secured_by : Text;
         smart_contract_url : Text;
         title : Text;
-        total_loan_amount : Text;
+        total_loan_amount : Nat;
         timestamp : Time.Time;
         status : PoolStatus;
     };
@@ -231,5 +233,23 @@ module {
     public type DrawdownReceipt = {
         #Ok : Nat;
         #Err : DrawdownErr;
+    };
+
+    public type LoanValidationErr = {
+        #InvalidPrinciplePaymentSchedule;
+        #InvalidInterestPaymentSchedue;
+        #InvalidTotalLoanAmount;
+        #InvalidPrinciplePaymentDeadline;
+        #InvalidInterestPaymentDeadline;
+    };
+
+    public type LoanValidation = {
+        #Ok;
+        #Err : LoanValidationErr;
+    };
+
+    public type ProposeLoanReceipt = {
+        #Ok : Loan;
+        #Err : LoanValidationErr;
     };
 };

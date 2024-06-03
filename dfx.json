@@ -1,19 +1,5 @@
 {
   "canisters": {
-    "ledger": {
-      "type": "custom",
-      "candid": "ledger.public.did",
-      "wasm": "https://download.dfinity.systems/ic/d87954601e4b22972899e9957e800406a0a6b929/canisters/ledger-canister.wasm.gz",
-      "remote": {
-        "id": {
-          "ic": "ryjl3-tyaaa-aaaaa-aaaba-cai"
-        }
-      }
-    },
-    "rbpro_backend": {
-      "main": "src/rbpro_backend/main.mo",
-      "type": "motoko"
-    },
     "pool": {
       "main": "src/rbpro_backend/Pool.mo",
       "type": "motoko"
@@ -21,24 +7,6 @@
     "factory": {
       "main": "src/rbpro_backend/Factory.mo",
       "type": "motoko"
-    },
-    "icrc1_ledger_canister": {
-      "type": "custom",
-      "candid": "https://raw.githubusercontent.com/dfinity/ic/d87954601e4b22972899e9957e800406a0a6b929/rs/rosetta-api/icrc1/ledger/ledger.did",
-      "wasm": "https://download.dfinity.systems/ic/d87954601e4b22972899e9957e800406a0a6b929/canisters/ic-icrc1-ledger.wasm.gz"
-    },
-    "rbpro_frontend": {
-      "dependencies": [
-        "rbpro_backend"
-      ],
-      "frontend": {
-        "entrypoint": "src/rbpro_frontend/src/index.html"
-      },
-      "source": [
-        "src/rbpro_frontend/assets",
-        "dist/rbpro_frontend/"
-      ],
-      "type": "assets"
     },
     "dummy_usdc": {
       "main": "src/token/DIP20.mo",

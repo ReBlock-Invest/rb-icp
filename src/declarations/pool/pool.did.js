@@ -1,25 +1,43 @@
 export const idlFactory = ({ IDL }) => {
-  const FeeArgs = IDL.Record({
+  const Fee = IDL.Record({
     'fee' : IDL.Nat,
     'fee_basis_point' : IDL.Nat,
     'treasury' : IDL.Principal,
   });
-  const Time = IDL.Int;
-  const PoolInfo = IDL.Record({
+  const LoanStatus = IDL.Variant({
+    'active' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const LoanInfo = IDL.Record({
     'apr' : IDL.Text,
     'title' : IDL.Text,
     'issuer_picture' : IDL.Text,
-    'smart_contract_url' : IDL.Text,
-    'total_loan_amount' : IDL.Text,
     'payment_frequency' : IDL.Text,
     'description' : IDL.Text,
-    'maturity_date' : Time,
     'loan_term' : IDL.Text,
     'issuer_description' : IDL.Text,
     'secured_by' : IDL.Text,
-    'fundrise_end_time' : Time,
     'credit_rating' : IDL.Text,
+  });
+  const Time = IDL.Int;
+  const Loan = IDL.Record({
+    'principle_schedule' : IDL.Vec(IDL.Nat),
+    'status' : IDL.Opt(LoanStatus),
+    'asset' : IDL.Principal,
+    'finder_fee' : IDL.Nat,
+    'info' : LoanInfo,
+    'total_loan_amount' : IDL.Nat,
+    'maturity_date' : Time,
+    'principle_payment_deadline' : IDL.Vec(Time),
+    'late_fee' : IDL.Nat,
+    'interest_rate' : IDL.Nat,
+    'interest_schedule' : IDL.Vec(IDL.Nat),
+    'index' : IDL.Opt(IDL.Nat),
+    'fundrise_end_time' : Time,
     'origination_date' : Time,
+    'borrowers' : IDL.Vec(IDL.Principal),
+    'interest_payment_deadline' : IDL.Vec(Time),
   });
   const Balance = IDL.Nat;
   const Timestamp = IDL.Nat64;
@@ -44,12 +62,10 @@ export const idlFactory = ({ IDL }) => {
     'max_supply' : Balance,
     'symbol' : IDL.Text,
   });
-  const PoolArgs = IDL.Record({
-    'fee' : FeeArgs,
-    'asset' : IDL.Principal,
-    'info' : PoolInfo,
+  const InitPool = IDL.Record({
+    'fee' : Fee,
+    'loan' : Loan,
     'token_args' : TokenInitArgs,
-    'borrowers' : IDL.Vec(IDL.Principal),
   });
   const BurnArgs = IDL.Record({
     'memo' : IDL.Opt(IDL.Vec(IDL.Nat8)),
@@ -83,6 +99,38 @@ export const idlFactory = ({ IDL }) => {
     'BalanceLow' : IDL.Null,
   });
   const DrawdownReceipt = IDL.Variant({ 'Ok' : IDL.Nat, 'Err' : DrawdownErr });
+  const Fee__1 = IDL.Record({
+    'fee' : IDL.Nat,
+    'fee_basis_point' : IDL.Nat,
+    'treasury' : IDL.Principal,
+  });
+  const PoolStatus = IDL.Variant({
+    'closed' : IDL.Null,
+    'active' : IDL.Null,
+    'pending' : IDL.Null,
+    'open' : IDL.Null,
+    'default' : IDL.Null,
+  });
+  const PoolRecord = IDL.Record({
+    'id' : IDL.Principal,
+    'apr' : IDL.Text,
+    'status' : PoolStatus,
+    'title' : IDL.Text,
+    'issuer_picture' : IDL.Text,
+    'smart_contract_url' : IDL.Text,
+    'total_loan_amount' : IDL.Nat,
+    'payment_frequency' : IDL.Text,
+    'description' : IDL.Text,
+    'maturity_date' : Time,
+    'loan_term' : IDL.Text,
+    'issuer_description' : IDL.Text,
+    'timestamp' : Time,
+    'secured_by' : IDL.Text,
+    'fundrise_end_time' : Time,
+    'credit_rating' : IDL.Text,
+    'origination_date' : Time,
+    'borrowers' : IDL.Vec(IDL.Principal),
+  });
   const PoolOperation = IDL.Variant({
     'withdraw' : IDL.Null,
     'init' : IDL.Null,
@@ -227,8 +275,8 @@ export const idlFactory = ({ IDL }) => {
     'get_borrower' : IDL.Func([], [IDL.Vec(IDL.Principal)], []),
     'get_decimal_offset' : IDL.Func([], [IDL.Nat8], []),
     'get_deposit_address' : IDL.Func([], [IDL.Text], []),
-    'get_fee' : IDL.Func([], [FeeArgs], ['query']),
-    'get_info' : IDL.Func([], [PoolInfo], ['query']),
+    'get_fee' : IDL.Func([], [Fee__1], ['query']),
+    'get_info' : IDL.Func([], [PoolRecord], ['query']),
     'get_pool_transaction' : IDL.Func([IDL.Nat], [PoolTxRecord], ['query']),
     'get_pool_transactions' : IDL.Func(
         [IDL.Nat, IDL.Nat],
@@ -268,34 +316,51 @@ export const idlFactory = ({ IDL }) => {
     'repay_principal' : IDL.Func([IDL.Nat], [RepayPrincipalReceipt], []),
     'set_borrower' : IDL.Func([IDL.Principal], [], ['oneway']),
     'set_decimal_offset' : IDL.Func([IDL.Nat8], [IDL.Nat8], []),
-    'set_fee' : IDL.Func([FeeArgs], [FeeArgs], []),
-    'set_info' : IDL.Func([PoolInfo], [PoolInfo], []),
+    'set_fee' : IDL.Func([Fee__1], [Fee__1], []),
     'withdraw' : IDL.Func([IDL.Nat], [WithdrawReceipt], []),
   });
   return Pool;
 };
 export const init = ({ IDL }) => {
-  const FeeArgs = IDL.Record({
+  const Fee = IDL.Record({
     'fee' : IDL.Nat,
     'fee_basis_point' : IDL.Nat,
     'treasury' : IDL.Principal,
   });
-  const Time = IDL.Int;
-  const PoolInfo = IDL.Record({
+  const LoanStatus = IDL.Variant({
+    'active' : IDL.Null,
+    'approved' : IDL.Null,
+    'rejected' : IDL.Null,
+  });
+  const LoanInfo = IDL.Record({
     'apr' : IDL.Text,
     'title' : IDL.Text,
     'issuer_picture' : IDL.Text,
-    'smart_contract_url' : IDL.Text,
-    'total_loan_amount' : IDL.Text,
     'payment_frequency' : IDL.Text,
     'description' : IDL.Text,
-    'maturity_date' : Time,
     'loan_term' : IDL.Text,
     'issuer_description' : IDL.Text,
     'secured_by' : IDL.Text,
-    'fundrise_end_time' : Time,
     'credit_rating' : IDL.Text,
+  });
+  const Time = IDL.Int;
+  const Loan = IDL.Record({
+    'principle_schedule' : IDL.Vec(IDL.Nat),
+    'status' : IDL.Opt(LoanStatus),
+    'asset' : IDL.Principal,
+    'finder_fee' : IDL.Nat,
+    'info' : LoanInfo,
+    'total_loan_amount' : IDL.Nat,
+    'maturity_date' : Time,
+    'principle_payment_deadline' : IDL.Vec(Time),
+    'late_fee' : IDL.Nat,
+    'interest_rate' : IDL.Nat,
+    'interest_schedule' : IDL.Vec(IDL.Nat),
+    'index' : IDL.Opt(IDL.Nat),
+    'fundrise_end_time' : Time,
     'origination_date' : Time,
+    'borrowers' : IDL.Vec(IDL.Principal),
+    'interest_payment_deadline' : IDL.Vec(Time),
   });
   const Balance = IDL.Nat;
   const Timestamp = IDL.Nat64;
@@ -320,12 +385,10 @@ export const init = ({ IDL }) => {
     'max_supply' : Balance,
     'symbol' : IDL.Text,
   });
-  const PoolArgs = IDL.Record({
-    'fee' : FeeArgs,
-    'asset' : IDL.Principal,
-    'info' : PoolInfo,
+  const InitPool = IDL.Record({
+    'fee' : Fee,
+    'loan' : Loan,
     'token_args' : TokenInitArgs,
-    'borrowers' : IDL.Vec(IDL.Principal),
   });
-  return [PoolArgs];
+  return [InitPool];
 };
