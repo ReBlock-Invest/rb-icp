@@ -70,20 +70,20 @@ export const idlFactory = ({ IDL }) => {
   });
   const Time = IDL.Int;
   const Loan = IDL.Record({
-    'principle_schedule' : IDL.Vec(IDL.Nat),
     'status' : IDL.Opt(LoanStatus),
     'asset' : IDL.Principal,
     'finder_fee' : IDL.Nat,
     'info' : LoanInfo,
     'total_loan_amount' : IDL.Nat,
     'maturity_date' : Time,
-    'principle_payment_deadline' : IDL.Vec(Time),
     'late_fee' : IDL.Nat,
     'interest_rate' : IDL.Nat,
     'interest_schedule' : IDL.Vec(IDL.Nat),
+    'principal_schedule' : IDL.Vec(IDL.Nat),
     'index' : IDL.Opt(IDL.Nat),
     'fundrise_end_time' : Time,
     'origination_date' : Time,
+    'principal_payment_deadline' : IDL.Vec(Time),
     'borrowers' : IDL.Vec(IDL.Principal),
     'interest_payment_deadline' : IDL.Vec(Time),
   });
@@ -122,28 +122,28 @@ export const idlFactory = ({ IDL }) => {
     'borrowers' : IDL.Vec(IDL.Principal),
   });
   const Loan__1 = IDL.Record({
-    'principle_schedule' : IDL.Vec(IDL.Nat),
     'status' : IDL.Opt(LoanStatus),
     'asset' : IDL.Principal,
     'finder_fee' : IDL.Nat,
     'info' : LoanInfo,
     'total_loan_amount' : IDL.Nat,
     'maturity_date' : Time,
-    'principle_payment_deadline' : IDL.Vec(Time),
     'late_fee' : IDL.Nat,
     'interest_rate' : IDL.Nat,
     'interest_schedule' : IDL.Vec(IDL.Nat),
+    'principal_schedule' : IDL.Vec(IDL.Nat),
     'index' : IDL.Opt(IDL.Nat),
     'fundrise_end_time' : Time,
     'origination_date' : Time,
+    'principal_payment_deadline' : IDL.Vec(Time),
     'borrowers' : IDL.Vec(IDL.Principal),
     'interest_payment_deadline' : IDL.Vec(Time),
   });
   const LoanValidationErr = IDL.Variant({
     'InvalidInterestPaymentDeadline' : IDL.Null,
-    'InvalidPrinciplePaymentDeadline' : IDL.Null,
+    'InvalidPrincipalPaymentDeadline' : IDL.Null,
     'InvalidTotalLoanAmount' : IDL.Null,
-    'InvalidPrinciplePaymentSchedule' : IDL.Null,
+    'InvalidPrincipalPaymentSchedule' : IDL.Null,
     'InvalidInterestPaymentSchedue' : IDL.Null,
   });
   const ProposeLoanReceipt = IDL.Variant({

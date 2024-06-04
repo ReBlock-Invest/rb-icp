@@ -35,9 +35,9 @@ module {
         borrowers : [Principal];
         asset : Principal;
         total_loan_amount : Nat;
-        principle_schedule : [Nat];
+        principal_schedule : [Nat];
         interest_schedule : [Nat];
-        principle_payment_deadline : [Time.Time];
+        principal_payment_deadline : [Time.Time];
         interest_payment_deadline : [Time.Time];
         interest_rate : Nat;
         finder_fee : Nat;
@@ -187,6 +187,7 @@ module {
     public type WithdrawErr = {
         #BalanceLow;
         #TransferFailure;
+        #WithdrawBeforeMaturityDate;
     };
 
     public type WithdrawReceipt = {
@@ -197,6 +198,7 @@ module {
     public type DepositErr = {
         #BalanceLow;
         #TransferFailure;
+        #FundriseTimeEnded;
     };
 
     public type DepositReceipt = {
@@ -207,6 +209,7 @@ module {
     public type RepayPrincipalErr = {
         #BalanceLow;
         #TransferFailure;
+        #ZeroAmountTransfer;
     };
 
     public type RepayPrincipalReceipt = {
@@ -217,6 +220,7 @@ module {
     public type RepayInterestErr = {
         #BalanceLow;
         #TransferFailure;
+        #ZeroAmountTransfer;
     };
 
     public type RepayInterestReceipt = {
@@ -228,6 +232,7 @@ module {
         #BalanceLow;
         #TransferFailure;
         #NotAuthorized;
+        #BeforeOriginationDate;
     };
 
     public type DrawdownReceipt = {
@@ -236,10 +241,10 @@ module {
     };
 
     public type LoanValidationErr = {
-        #InvalidPrinciplePaymentSchedule;
+        #InvalidPrincipalPaymentSchedule;
         #InvalidInterestPaymentSchedue;
         #InvalidTotalLoanAmount;
-        #InvalidPrinciplePaymentDeadline;
+        #InvalidPrincipalPaymentDeadline;
         #InvalidInterestPaymentDeadline;
     };
 

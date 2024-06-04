@@ -42,20 +42,20 @@ export interface Fee__1 {
 }
 export interface InitFactory { 'fee' : Fee, 'pool_token_args' : TokenInitArgs }
 export interface Loan {
-  'principle_schedule' : Array<bigint>,
   'status' : [] | [LoanStatus],
   'asset' : Principal,
   'finder_fee' : bigint,
   'info' : LoanInfo,
   'total_loan_amount' : bigint,
   'maturity_date' : Time,
-  'principle_payment_deadline' : Array<Time>,
   'late_fee' : bigint,
   'interest_rate' : bigint,
   'interest_schedule' : Array<bigint>,
+  'principal_schedule' : Array<bigint>,
   'index' : [] | [bigint],
   'fundrise_end_time' : Time,
   'origination_date' : Time,
+  'principal_payment_deadline' : Array<Time>,
   'borrowers' : Array<Principal>,
   'interest_payment_deadline' : Array<Time>,
 }
@@ -77,25 +77,25 @@ export type LoanStatus__1 = { 'active' : null } |
   { 'approved' : null } |
   { 'rejected' : null };
 export type LoanValidationErr = { 'InvalidInterestPaymentDeadline' : null } |
-  { 'InvalidPrinciplePaymentDeadline' : null } |
+  { 'InvalidPrincipalPaymentDeadline' : null } |
   { 'InvalidTotalLoanAmount' : null } |
-  { 'InvalidPrinciplePaymentSchedule' : null } |
+  { 'InvalidPrincipalPaymentSchedule' : null } |
   { 'InvalidInterestPaymentSchedue' : null };
 export interface Loan__1 {
-  'principle_schedule' : Array<bigint>,
   'status' : [] | [LoanStatus],
   'asset' : Principal,
   'finder_fee' : bigint,
   'info' : LoanInfo,
   'total_loan_amount' : bigint,
   'maturity_date' : Time,
-  'principle_payment_deadline' : Array<Time>,
   'late_fee' : bigint,
   'interest_rate' : bigint,
   'interest_schedule' : Array<bigint>,
+  'principal_schedule' : Array<bigint>,
   'index' : [] | [bigint],
   'fundrise_end_time' : Time,
   'origination_date' : Time,
+  'principal_payment_deadline' : Array<Time>,
   'borrowers' : Array<Principal>,
   'interest_payment_deadline' : Array<Time>,
 }

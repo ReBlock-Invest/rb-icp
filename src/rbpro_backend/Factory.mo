@@ -98,8 +98,8 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
     // ===== LOAN ===== //
 
     private func is_valid_loan(loan : Loan) : LoanValidation {
-        if (loan.principle_schedule.size() != loan.principle_payment_deadline.size()) {
-            return #Err(#InvalidPrinciplePaymentSchedule);
+        if (loan.principal_schedule.size() != loan.principal_payment_deadline.size()) {
+            return #Err(#InvalidPrincipalPaymentSchedule);
         };
 
         if (loan.interest_schedule.size() != loan.interest_payment_deadline.size()) {
@@ -107,7 +107,7 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
         };
 
         var total_payment : Nat = 0;
-        for (amount in loan.principle_schedule.vals()) {
+        for (amount in loan.principal_schedule.vals()) {
             total_payment += amount;
         };
 
@@ -116,9 +116,9 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
         };
 
         var t : Time.Time = Time.now();
-        for (pt in loan.principle_payment_deadline.vals()) {
+        for (pt in loan.principal_payment_deadline.vals()) {
             if (t > pt) {
-                return #Err(#InvalidPrinciplePaymentDeadline);
+                return #Err(#InvalidPrincipalPaymentDeadline);
             };
 
             t := pt;

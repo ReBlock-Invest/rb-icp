@@ -87,8 +87,8 @@ type Loan__1 =
    late_fee: nat;
    maturity_date: Time;
    origination_date: Time;
-   principle_payment_deadline: vec Time;
-   principle_schedule: vec nat;
+   principal_payment_deadline: vec Time;
+   principal_schedule: vec nat;
    status: opt LoanStatus;
    total_loan_amount: nat;
  };
@@ -96,8 +96,8 @@ type LoanValidationErr =
  variant {
    InvalidInterestPaymentDeadline;
    InvalidInterestPaymentSchedue;
-   InvalidPrinciplePaymentDeadline;
-   InvalidPrinciplePaymentSchedule;
+   InvalidPrincipalPaymentDeadline;
+   InvalidPrincipalPaymentSchedule;
    InvalidTotalLoanAmount;
  };
 type LoanStatus__1 = 
@@ -138,8 +138,8 @@ type Loan =
    late_fee: nat;
    maturity_date: Time;
    origination_date: Time;
-   principle_payment_deadline: vec Time;
-   principle_schedule: vec nat;
+   principal_payment_deadline: vec Time;
+   principal_schedule: vec nat;
    status: opt LoanStatus;
    total_loan_amount: nat;
  };

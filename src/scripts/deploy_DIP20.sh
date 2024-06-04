@@ -13,7 +13,7 @@ ROOT_PUBLIC_KEY="principal \"$(HOME=$ROOT_HOME dfx identity get-principal)\""
 #build token canister
 dfx build
 # deploy token
-dfx canister install dummy_usdc --argument="(\"https://seeklogo.com/images/U/usd-coin-usdc-logo-CB4C5B1C51-seeklogo.com.png\", \"Dummy USDC\", \"DUSDC\", 8, 10000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 10000)"
+dfx canister install dummy_usdc --argument="(\"https://seeklogo.com/images/U/usd-coin-usdc-logo-CB4C5B1C51-seeklogo.com.png\", \"Dummy USDC\", \"DUSDC\", 8, 1000000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 0)"
 
 dfx canister install dummy_usdc --argument="(\"https://i.ibb.co/XVMhZM2/reblock.jpg\", \"Dummy USDC\", \"DUSDC\", 8, 10000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 10000)"
 

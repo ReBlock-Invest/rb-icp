@@ -35,10 +35,12 @@ export interface BurnArgs {
   'amount' : Balance,
 }
 export type DepositErr = { 'TransferFailure' : null } |
+  { 'FundriseTimeEnded' : null } |
   { 'BalanceLow' : null };
 export type DepositReceipt = { 'Ok' : bigint } |
   { 'Err' : DepositErr };
-export type DrawdownErr = { 'TransferFailure' : null } |
+export type DrawdownErr = { 'BeforeOriginationDate' : null } |
+  { 'TransferFailure' : null } |
   { 'NotAuthorized' : null } |
   { 'BalanceLow' : null };
 export type DrawdownReceipt = { 'Ok' : bigint } |
@@ -70,20 +72,20 @@ export interface InitPool {
   'token_args' : TokenInitArgs,
 }
 export interface Loan {
-  'principle_schedule' : Array<bigint>,
   'status' : [] | [LoanStatus],
   'asset' : Principal,
   'finder_fee' : bigint,
   'info' : LoanInfo,
   'total_loan_amount' : bigint,
   'maturity_date' : Time,
-  'principle_payment_deadline' : Array<Time>,
   'late_fee' : bigint,
   'interest_rate' : bigint,
   'interest_schedule' : Array<bigint>,
+  'principal_schedule' : Array<bigint>,
   'index' : [] | [bigint],
   'fundrise_end_time' : Time,
   'origination_date' : Time,
+  'principal_payment_deadline' : Array<Time>,
   'borrowers' : Array<Principal>,
   'interest_payment_deadline' : Array<Time>,
 }
@@ -120,7 +122,7 @@ export interface Pool {
   'convert_to_assets' : ActorMethod<[bigint], bigint>,
   'convert_to_shares' : ActorMethod<[bigint], bigint>,
   'deposit' : ActorMethod<[bigint], DepositReceipt>,
-  'drawdown' : ActorMethod<[bigint], DrawdownReceipt>,
+  'drawdown' : ActorMethod<[], DrawdownReceipt>,
   'fee_calc' : ActorMethod<[bigint], bigint>,
   'get_asset' : ActorMethod<[], Principal>,
   'get_borrower' : ActorMethod<[], Array<Principal>>,
@@ -152,9 +154,13 @@ export interface Pool {
   'icrc1_total_supply' : ActorMethod<[], Balance__1>,
   'icrc1_transfer' : ActorMethod<[TransferArgs], TransferResult>,
   'mint' : ActorMethod<[Mint], TransferResult>,
+  'next_interest_repayment' : ActorMethod<[], bigint>,
+  'next_interest_repayment_deadline' : ActorMethod<[], [] | [Time]>,
+  'next_principal_repayment' : ActorMethod<[], bigint>,
+  'next_principal_repayment_deadline' : ActorMethod<[], [] | [Time]>,
   'remove_borrower' : ActorMethod<[Principal], undefined>,
-  'repay_interest' : ActorMethod<[bigint], RepayInterestReceipt>,
-  'repay_principal' : ActorMethod<[bigint], RepayPrincipalReceipt>,
+  'repay_interest' : ActorMethod<[], RepayInterestReceipt>,
+  'repay_principal' : ActorMethod<[], RepayPrincipalReceipt>,
   'set_borrower' : ActorMethod<[Principal], undefined>,
   'set_decimal_offset' : ActorMethod<[number], number>,
   'set_fee' : ActorMethod<[Fee__1], Fee__1>,
@@ -207,11 +213,13 @@ export type QueryArchiveFn = ActorMethod<
   TransactionRange
 >;
 export type RepayInterestErr = { 'TransferFailure' : null } |
-  { 'BalanceLow' : null };
+  { 'BalanceLow' : null } |
+  { 'ZeroAmountTransfer' : null };
 export type RepayInterestReceipt = { 'Ok' : bigint } |
   { 'Err' : RepayInterestErr };
 export type RepayPrincipalErr = { 'TransferFailure' : null } |
-  { 'BalanceLow' : null };
+  { 'BalanceLow' : null } |
+  { 'ZeroAmountTransfer' : null };
 export type RepayPrincipalReceipt = { 'Ok' : bigint } |
   { 'Err' : RepayPrincipalErr };
 export type Subaccount = Uint8Array | number[];
@@ -283,6 +291,7 @@ export type Value = { 'Int' : bigint } |
   { 'Blob' : Uint8Array | number[] } |
   { 'Text' : string };
 export type WithdrawErr = { 'TransferFailure' : null } |
+  { 'WithdrawBeforeMaturityDate' : null } |
   { 'BalanceLow' : null };
 export type WithdrawReceipt = { 'Ok' : bigint } |
   { 'Err' : WithdrawErr };

@@ -7,6 +7,7 @@ type WithdrawErr =
  variant {
    BalanceLow;
    TransferFailure;
+   WithdrawBeforeMaturityDate;
  };
 type Value = 
  variant {
@@ -110,6 +111,7 @@ type RepayPrincipalErr =
  variant {
    BalanceLow;
    TransferFailure;
+   ZeroAmountTransfer;
  };
 type RepayInterestReceipt = 
  variant {
@@ -120,6 +122,7 @@ type RepayInterestErr =
  variant {
    BalanceLow;
    TransferFailure;
+   ZeroAmountTransfer;
  };
 type QueryArchiveFn = func (GetTransactionsRequest__1) ->
                        (TransactionRange) query;
@@ -180,7 +183,7 @@ type Pool =
    convert_to_assets: (nat) -> (nat);
    convert_to_shares: (nat) -> (nat);
    deposit: (nat) -> (DepositReceipt);
-   drawdown: (nat) -> (DrawdownReceipt);
+   drawdown: () -> (DrawdownReceipt);
    fee_calc: (nat) -> (nat);
    get_asset: () -> (principal) query;
    get_borrower: () -> (vec principal);
@@ -207,9 +210,13 @@ type Pool =
    icrc1_total_supply: () -> (Balance__1) query;
    icrc1_transfer: (TransferArgs) -> (TransferResult);
    mint: (Mint) -> (TransferResult);
+   next_interest_repayment: () -> (nat);
+   next_interest_repayment_deadline: () -> (opt Time);
+   next_principal_repayment: () -> (nat);
+   next_principal_repayment_deadline: () -> (opt Time);
    remove_borrower: (principal) -> () oneway;
-   repay_interest: (nat) -> (RepayInterestReceipt);
-   repay_principal: (nat) -> (RepayPrincipalReceipt);
+   repay_interest: () -> (RepayInterestReceipt);
+   repay_principal: () -> (RepayPrincipalReceipt);
    set_borrower: (principal) -> () oneway;
    set_decimal_offset: (nat8) -> (nat8);
    set_fee: (Fee__1) -> (Fee__1);
@@ -266,8 +273,8 @@ type Loan =
    late_fee: nat;
    maturity_date: Time;
    origination_date: Time;
-   principle_payment_deadline: vec Time;
-   principle_schedule: vec nat;
+   principal_payment_deadline: vec Time;
+   principal_schedule: vec nat;
    status: opt LoanStatus;
    total_loan_amount: nat;
  };
@@ -314,6 +321,7 @@ type DrawdownReceipt =
 type DrawdownErr = 
  variant {
    BalanceLow;
+   BeforeOriginationDate;
    NotAuthorized;
    TransferFailure;
  };
@@ -325,6 +333,7 @@ type DepositReceipt =
 type DepositErr = 
  variant {
    BalanceLow;
+   FundriseTimeEnded;
    TransferFailure;
  };
 type BurnArgs = 

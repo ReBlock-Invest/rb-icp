@@ -22,20 +22,20 @@ export const idlFactory = ({ IDL }) => {
   });
   const Time = IDL.Int;
   const Loan = IDL.Record({
-    'principle_schedule' : IDL.Vec(IDL.Nat),
     'status' : IDL.Opt(LoanStatus),
     'asset' : IDL.Principal,
     'finder_fee' : IDL.Nat,
     'info' : LoanInfo,
     'total_loan_amount' : IDL.Nat,
     'maturity_date' : Time,
-    'principle_payment_deadline' : IDL.Vec(Time),
     'late_fee' : IDL.Nat,
     'interest_rate' : IDL.Nat,
     'interest_schedule' : IDL.Vec(IDL.Nat),
+    'principal_schedule' : IDL.Vec(IDL.Nat),
     'index' : IDL.Opt(IDL.Nat),
     'fundrise_end_time' : Time,
     'origination_date' : Time,
+    'principal_payment_deadline' : IDL.Vec(Time),
     'borrowers' : IDL.Vec(IDL.Principal),
     'interest_payment_deadline' : IDL.Vec(Time),
   });
@@ -90,10 +90,12 @@ export const idlFactory = ({ IDL }) => {
   const TransferResult = IDL.Variant({ 'Ok' : TxIndex, 'Err' : TransferError });
   const DepositErr = IDL.Variant({
     'TransferFailure' : IDL.Null,
+    'FundriseTimeEnded' : IDL.Null,
     'BalanceLow' : IDL.Null,
   });
   const DepositReceipt = IDL.Variant({ 'Ok' : IDL.Nat, 'Err' : DepositErr });
   const DrawdownErr = IDL.Variant({
+    'BeforeOriginationDate' : IDL.Null,
     'TransferFailure' : IDL.Null,
     'NotAuthorized' : IDL.Null,
     'BalanceLow' : IDL.Null,
@@ -245,6 +247,7 @@ export const idlFactory = ({ IDL }) => {
   const RepayInterestErr = IDL.Variant({
     'TransferFailure' : IDL.Null,
     'BalanceLow' : IDL.Null,
+    'ZeroAmountTransfer' : IDL.Null,
   });
   const RepayInterestReceipt = IDL.Variant({
     'Ok' : IDL.Nat,
@@ -253,6 +256,7 @@ export const idlFactory = ({ IDL }) => {
   const RepayPrincipalErr = IDL.Variant({
     'TransferFailure' : IDL.Null,
     'BalanceLow' : IDL.Null,
+    'ZeroAmountTransfer' : IDL.Null,
   });
   const RepayPrincipalReceipt = IDL.Variant({
     'Ok' : IDL.Nat,
@@ -260,6 +264,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const WithdrawErr = IDL.Variant({
     'TransferFailure' : IDL.Null,
+    'WithdrawBeforeMaturityDate' : IDL.Null,
     'BalanceLow' : IDL.Null,
   });
   const WithdrawReceipt = IDL.Variant({ 'Ok' : IDL.Nat, 'Err' : WithdrawErr });
@@ -269,7 +274,7 @@ export const idlFactory = ({ IDL }) => {
     'convert_to_assets' : IDL.Func([IDL.Nat], [IDL.Nat], []),
     'convert_to_shares' : IDL.Func([IDL.Nat], [IDL.Nat], []),
     'deposit' : IDL.Func([IDL.Nat], [DepositReceipt], []),
-    'drawdown' : IDL.Func([IDL.Nat], [DrawdownReceipt], []),
+    'drawdown' : IDL.Func([], [DrawdownReceipt], []),
     'fee_calc' : IDL.Func([IDL.Nat], [IDL.Nat], []),
     'get_asset' : IDL.Func([], [IDL.Principal], ['query']),
     'get_borrower' : IDL.Func([], [IDL.Vec(IDL.Principal)], []),
@@ -311,9 +316,13 @@ export const idlFactory = ({ IDL }) => {
     'icrc1_total_supply' : IDL.Func([], [Balance__1], ['query']),
     'icrc1_transfer' : IDL.Func([TransferArgs], [TransferResult], []),
     'mint' : IDL.Func([Mint], [TransferResult], []),
+    'next_interest_repayment' : IDL.Func([], [IDL.Nat], []),
+    'next_interest_repayment_deadline' : IDL.Func([], [IDL.Opt(Time)], []),
+    'next_principal_repayment' : IDL.Func([], [IDL.Nat], []),
+    'next_principal_repayment_deadline' : IDL.Func([], [IDL.Opt(Time)], []),
     'remove_borrower' : IDL.Func([IDL.Principal], [], ['oneway']),
-    'repay_interest' : IDL.Func([IDL.Nat], [RepayInterestReceipt], []),
-    'repay_principal' : IDL.Func([IDL.Nat], [RepayPrincipalReceipt], []),
+    'repay_interest' : IDL.Func([], [RepayInterestReceipt], []),
+    'repay_principal' : IDL.Func([], [RepayPrincipalReceipt], []),
     'set_borrower' : IDL.Func([IDL.Principal], [], ['oneway']),
     'set_decimal_offset' : IDL.Func([IDL.Nat8], [IDL.Nat8], []),
     'set_fee' : IDL.Func([Fee__1], [Fee__1], []),
@@ -345,20 +354,20 @@ export const init = ({ IDL }) => {
   });
   const Time = IDL.Int;
   const Loan = IDL.Record({
-    'principle_schedule' : IDL.Vec(IDL.Nat),
     'status' : IDL.Opt(LoanStatus),
     'asset' : IDL.Principal,
     'finder_fee' : IDL.Nat,
     'info' : LoanInfo,
     'total_loan_amount' : IDL.Nat,
     'maturity_date' : Time,
-    'principle_payment_deadline' : IDL.Vec(Time),
     'late_fee' : IDL.Nat,
     'interest_rate' : IDL.Nat,
     'interest_schedule' : IDL.Vec(IDL.Nat),
+    'principal_schedule' : IDL.Vec(IDL.Nat),
     'index' : IDL.Opt(IDL.Nat),
     'fundrise_end_time' : Time,
     'origination_date' : Time,
+    'principal_payment_deadline' : IDL.Vec(Time),
     'borrowers' : IDL.Vec(IDL.Principal),
     'interest_payment_deadline' : IDL.Vec(Time),
   });
