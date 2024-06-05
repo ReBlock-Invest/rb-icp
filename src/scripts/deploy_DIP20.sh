@@ -15,6 +15,8 @@ dfx build
 # deploy token
 dfx canister install dummy_usdc --argument="(\"https://seeklogo.com/images/U/usd-coin-usdc-logo-CB4C5B1C51-seeklogo.com.png\", \"Dummy USDC\", \"DUSDC\", 8, 1000000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 0)"
 
+dfx deploy dummy_ckusdc --argument="(\"https://seeklogo.com/images/U/usd-coin-usdc-logo-CB4C5B1C51-seeklogo.com.png\", \"Dummy CkUSDC\", \"CkUSDC\", 6, 1000000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 10000)"
+
 dfx canister install dummy_usdc --argument="(\"https://i.ibb.co/XVMhZM2/reblock.jpg\", \"Dummy USDC\", \"DUSDC\", 8, 10000000000000000, principal \"x24eu-2jbtp-gqxjp-g7qeo-4bxy3-itz4h-4v7zw-gzva2-jm7oc-gac6g-7qe\", 10000)"
 
 # set fee structure. Need Home prefix since this is location of our identity
@@ -27,7 +29,7 @@ HOME=$ROOT_HOME dfx canister --no-wallet call DIP20 balanceOf "($ROOT_PUBLIC_KEY
 
 dfx canister call dummy_usdc balanceOf "principal \"6cgi3-xxb7q-44fnk-zbipl-lseh5-u3eza-lab5h-adsdu-5fzrr-2ripn-rae\""
 
-dfx canister call dummy_usdc transfer "(principal \"fcqo5-se6eb-qgbif-pbgvf-fux7c-zceqw-gyhbo-55w26-2a6io-oiy6o-4ae\", 5_000_000_000_000)"
+dfx canister call dummy_ckusdc transfer "(principal \"qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae\", 5_000_000_000_000)"
 dfx canister call dummy_usdc transfer "(principal \"qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae\", 5_000_000_000_000)"
 dfx canister call dummy_usdc transfer "(principal \"ezp3d-dn22j-wyyra-ctgbg-tly7k-khzap-lqbat-gimyf-2ckmf-6uzv7-wae\", 100_000_000_000)" --network ic
 
@@ -57,7 +59,7 @@ dfx canister call pool icrc1_balance_of '(record { owner = principal "x24eu-2jbt
 dfx canister call dummy_usdc balanceOf 'principal "xu377-2nxx5-haly6-tybji-sa2cu-m2kh6-dv7a3-atqlf-2va7s-ptnyc-aae"'
 
 # drawdown USDC from borrower
-dfx canister call pool drawdown "(1_498_500_000_000)"
+dfx canister call pool drawdown "()"
 dfx canister call dummy_usdc balanceOf 'principal "qwnep-krhyp-dhcck-wkqco-etadf-wijbq-c6iat-bqr3a-tbzsp-hbywq-eae"'
 
 # repayment USDC from borrower

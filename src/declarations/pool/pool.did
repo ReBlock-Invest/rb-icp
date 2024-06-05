@@ -138,6 +138,14 @@ type PoolTxRecord =
    timestamp: Time;
    to: principal;
  };
+type PoolStatus__1 = 
+ variant {
+   active;
+   closed;
+   default;
+   open;
+   pending;
+ };
 type PoolStatus = 
  variant {
    active;
@@ -162,7 +170,7 @@ type PoolRecord =
    payment_frequency: text;
    secured_by: text;
    smart_contract_url: text;
-   status: PoolStatus;
+   status: PoolStatus__1;
    timestamp: Time;
    title: text;
    total_loan_amount: nat;
@@ -220,6 +228,8 @@ type Pool =
    set_borrower: (principal) -> () oneway;
    set_decimal_offset: (nat8) -> (nat8);
    set_fee: (Fee__1) -> (Fee__1);
+   trigger_closed: () -> (PoolStatus);
+   trigger_default: () -> (PoolStatus);
    withdraw: (nat) -> (WithdrawReceipt);
  };
 type Mint__1 = 
@@ -322,6 +332,7 @@ type DrawdownErr =
  variant {
    BalanceLow;
    BeforeOriginationDate;
+   InvalidDrawdown;
    NotAuthorized;
    TransferFailure;
  };

@@ -233,6 +233,7 @@ module {
         #TransferFailure;
         #NotAuthorized;
         #BeforeOriginationDate;
+        #InvalidDrawdown;
     };
 
     public type DrawdownReceipt = {

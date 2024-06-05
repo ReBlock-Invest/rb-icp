@@ -40,6 +40,7 @@ export type DepositErr = { 'TransferFailure' : null } |
 export type DepositReceipt = { 'Ok' : bigint } |
   { 'Err' : DepositErr };
 export type DrawdownErr = { 'BeforeOriginationDate' : null } |
+  { 'InvalidDrawdown' : null } |
   { 'TransferFailure' : null } |
   { 'NotAuthorized' : null } |
   { 'BalanceLow' : null };
@@ -164,6 +165,8 @@ export interface Pool {
   'set_borrower' : ActorMethod<[Principal], undefined>,
   'set_decimal_offset' : ActorMethod<[number], number>,
   'set_fee' : ActorMethod<[Fee__1], Fee__1>,
+  'trigger_closed' : ActorMethod<[], PoolStatus>,
+  'trigger_default' : ActorMethod<[], PoolStatus>,
   'withdraw' : ActorMethod<[bigint], WithdrawReceipt>,
 }
 export type PoolOperation = { 'withdraw' : null } |
@@ -175,7 +178,7 @@ export type PoolOperation = { 'withdraw' : null } |
 export interface PoolRecord {
   'id' : Principal,
   'apr' : string,
-  'status' : PoolStatus,
+  'status' : PoolStatus__1,
   'title' : string,
   'issuer_picture' : string,
   'smart_contract_url' : string,
@@ -193,6 +196,11 @@ export interface PoolRecord {
   'borrowers' : Array<Principal>,
 }
 export type PoolStatus = { 'closed' : null } |
+  { 'active' : null } |
+  { 'pending' : null } |
+  { 'open' : null } |
+  { 'default' : null };
+export type PoolStatus__1 = { 'closed' : null } |
   { 'active' : null } |
   { 'pending' : null } |
   { 'open' : null } |

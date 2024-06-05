@@ -108,6 +108,24 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         return fee;
     };
 
+    public shared ({ caller }) func trigger_closed() : async PoolStatus {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        status := #closed;
+        return status;
+    };
+
+    public shared ({ caller }) func trigger_default() : async PoolStatus {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        status := #default;
+        return status;
+    };
+
     public shared func fee_calc(amount : Nat) : async Nat {
         return (amount * fee.fee) / fee.fee_basis_point;
     };
@@ -336,35 +354,30 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
     };
 
     public shared (msg) func deposit(amount : Nat) : async T.DepositReceipt {
-        if (fundrise_end_time < Time.now()) {
-            return #Err(#FundriseTimeEnded);
-        };
-
-        if (await is_icrc2(asset)) {
+        let receipt = if (fundrise_end_time < Time.now()) {
+            #Err(#FundriseTimeEnded);
+        } else if (await is_icrc2(asset)) {
             await deposit_icrc(msg.caller, amount);
         } else {
             await deposit_dip(msg.caller, amount);
         };
+
+        receipt;
     };
 
     private func deposit_dip(caller : Principal, amount : Nat) : async T.DepositReceipt {
-        // cast token to actor
         let dip20 = actor (Principal.toText(asset)) : DIPInterface;
-        let dip_fee = await fetch_dip_fee(asset);
-        let protocol_fee = await fee_calc(amount);
-        let total : Nat = amount - dip_fee - protocol_fee;
-        let new_shares = await convert_to_shares(total);
+        let trx_fee = await fetch_dip_fee(asset);
 
-        // check DIP20 allowance
-        let balance : Nat = (await dip20.allowance(caller, Principal.fromActor(this)));
+        let amount_after_tfee : Nat = amount - trx_fee;
+
+        let protocol_fee = await fee_calc(amount_after_tfee);
+        let amount_after_pfee : Nat = amount_after_tfee - protocol_fee;
+
+        let new_shares = await convert_to_shares(amount_after_pfee);
 
         // transfer fund to pool.
-        let token_receipt = if (balance >= amount) {
-            await dip20.transferFrom(caller, Principal.fromActor(this), amount);
-        } else {
-            return #Err(#BalanceLow);
-        };
-
+        let token_receipt = await dip20.transferFrom(caller, Principal.fromActor(this), amount);
         switch token_receipt {
             case (#Err e) {
                 return #Err(#TransferFailure);
@@ -373,27 +386,27 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         };
 
         // transfer fee to treasury
-        if (protocol_fee > dip_fee) {
-            let _ = await dip20.transfer(fee.treasury, protocol_fee);
+        if (protocol_fee > trx_fee) {
+            let _ = await dip20.transfer(fee.treasury, protocol_fee - trx_fee);
         };
 
         switch (lenders.get(caller)) {
             case (null) {
-                lenders.put(caller, total);
+                lenders.put(caller, amount_after_pfee);
             };
             case (?old_fund) {
-                lenders.put(caller, old_fund + total);
+                lenders.put(caller, old_fund + amount_after_pfee);
             };
         };
 
-        total_fund := total_fund + total;
+        total_fund := total_fund + amount_after_pfee;
 
         let trx_receipt = await* ICRC1.transfer(
             token,
             {
                 amount = new_shares;
                 created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
-                fee = null;
+                fee = null; // mint is fee free
                 from_subaccount = null;
                 memo = null;
                 to = { owner = caller; subaccount = null };
@@ -408,47 +421,40 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             case _ {};
         };
 
-        let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount, dip_fee, Time.now(), #succeeded);
+        let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount_after_pfee, trx_fee + protocol_fee, Time.now(), #succeeded);
 
         #Ok(new_shares);
     };
 
     private func deposit_icrc(caller : Principal, amount : Nat) : async T.DepositReceipt {
-        // cast token to actor
         let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
-        let icrc_fee = await fetch_icrc_fee(asset);
-        let protocol_fee = await fee_calc(amount);
-        let total : Nat = amount - icrc_fee - protocol_fee;
-        let new_shares = await convert_to_shares(total);
+        let trx_fee = await fetch_icrc_fee(asset);
 
-        // check ICRC-2 allowance
+        let amount_after_tfee : Nat = amount - trx_fee;
+
+        let protocol_fee = await fee_calc(amount_after_tfee);
+        let amount_after_pfee : Nat = amount_after_tfee - protocol_fee;
+
+        let new_shares = await convert_to_shares(amount_after_pfee);
+
         let account : ICRC.Account = { owner = caller; subaccount = null };
         let spender : ICRC.Account = {
             owner = Principal.fromActor(this);
             subaccount = null;
         };
-        let balance : ICRC.Allowance = await icrc.icrc2_allowance({
-            account;
-            spender;
-        });
 
-        // transfer fund to pool.
-        let token_receipt = if (balance.allowance >= amount) {
-            let transfer_args : ICRC.TransferFromArgs = {
-                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
-                spender_subaccount = null;
-                from = account;
-                to = spender;
-                amount = amount;
-                fee = null;
-                memo = null;
-            };
-            // handle transfer result
-            await icrc.icrc2_transfer_from(transfer_args);
-        } else {
-            return #Err(#BalanceLow);
+        let transfer_args : ICRC.TransferFromArgs = {
+            created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+            spender_subaccount = null;
+            from = account;
+            to = spender;
+            amount = amount;
+            fee = ?trx_fee;
+            memo = null;
         };
 
+        // transfer fund to pool.
+        let token_receipt = await icrc.icrc2_transfer_from(transfer_args);
         switch token_receipt {
             case (#Err e) {
                 return #Err(#TransferFailure);
@@ -457,13 +463,13 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         };
 
         // transfer fee to treasury
-        if (protocol_fee > icrc_fee) {
+        if (protocol_fee > trx_fee) {
             let transfer_args : ICRC.TransferArg = {
                 created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
                 from_subaccount = null;
                 to = { owner = fee.treasury; subaccount = null };
-                amount = protocol_fee;
-                fee = null;
+                amount = protocol_fee - trx_fee;
+                fee = ?trx_fee;
                 memo = null;
             };
             let _ = await icrc.icrc1_transfer(transfer_args);
@@ -471,14 +477,14 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         switch (lenders.get(caller)) {
             case (null) {
-                lenders.put(caller, total);
+                lenders.put(caller, amount_after_pfee);
             };
             case (?old_fund) {
-                lenders.put(caller, old_fund + total);
+                lenders.put(caller, old_fund + amount_after_pfee);
             };
         };
 
-        total_fund := total_fund + total;
+        total_fund := total_fund + amount_after_pfee;
 
         let trx_receipt = await* ICRC1.transfer(
             token,
@@ -500,7 +506,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             case _ {};
         };
 
-        let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount, icrc_fee, Time.now(), #succeeded);
+        let _txtid = add_pool_record(?caller, #deposit, caller, Principal.fromActor(this), amount_after_pfee, trx_fee + protocol_fee, Time.now(), #succeeded);
 
         #Ok(new_shares);
     };
@@ -512,6 +518,10 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         if (origination_date > Time.now()) {
             return #Err(#BeforeOriginationDate);
+        };
+
+        if (status != #open) {
+            return #Err(#InvalidDrawdown);
         };
 
         let self : Principal = Principal.fromActor(this);
@@ -532,8 +542,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
                 created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
                 from_subaccount = null;
                 to = { owner = msg.caller; subaccount = null };
-                amount = amount;
-                fee = null;
+                amount = total;
+                fee = ?trx_fee;
                 memo = null;
             };
 
@@ -550,7 +560,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             trx_fee := await fetch_dip_fee(asset);
             total := amount - trx_fee;
 
-            let receipt = await dip20.transfer(msg.caller, amount);
+            let receipt = await dip20.transfer(msg.caller, total);
             switch receipt {
                 case (#Err _) {
                     return #Err(#TransferFailure);
@@ -561,7 +571,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         status := #active;
 
-        let _txtid = add_pool_record(?msg.caller, #drawdown, self, msg.caller, amount, trx_fee, Time.now(), #succeeded);
+        let _txtid = add_pool_record(?msg.caller, #drawdown, self, msg.caller, total, trx_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };
@@ -616,12 +626,10 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         var trx_fee : Nat = 0;
 
         if (await is_icrc2(asset)) {
-            // cast token to actor
             let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
             trx_fee := await fetch_icrc_fee(asset);
             total := amount - trx_fee;
 
-            // check ICRC-2 allowance
             let account : ICRC.Account = {
                 owner = msg.caller;
                 subaccount = null;
@@ -630,28 +638,19 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
                 owner = Principal.fromActor(this);
                 subaccount = null;
             };
-            let balance : ICRC.Allowance = await icrc.icrc2_allowance({
-                account;
-                spender;
-            });
 
-            // transfer fund to pool.
-            let token_receipt = if (balance.allowance >= amount) {
-                let transfer_args : ICRC.TransferFromArgs = {
-                    created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
-                    spender_subaccount = null;
-                    from = account;
-                    to = spender;
-                    amount = amount;
-                    fee = null;
-                    memo = null;
-                };
-                // handle transfer result
-                await icrc.icrc2_transfer_from(transfer_args);
-            } else {
-                return #Err(#BalanceLow);
+            let transfer_args : ICRC.TransferFromArgs = {
+                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+                spender_subaccount = null;
+                from = account;
+                to = spender;
+                amount = total;
+                fee = ?trx_fee;
+                memo = null;
             };
 
+            // transfer fund to pool.
+            let token_receipt = await icrc.icrc2_transfer_from(transfer_args);
             switch token_receipt {
                 case (#Err e) {
                     return #Err(#TransferFailure);
@@ -664,15 +663,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             trx_fee := await fetch_dip_fee(asset);
             total := amount - trx_fee;
 
-            // check DIP20 allowance
-            let balance : Nat = (await dip20.allowance(msg.caller, Principal.fromActor(this)));
-
             // transfer to account.
-            let token_receipt = if (balance >= amount) {
-                await dip20.transferFrom(msg.caller, Principal.fromActor(this), amount);
-            } else {
-                return #Err(#BalanceLow);
-            };
+            let token_receipt = await dip20.transferFrom(msg.caller, Principal.fromActor(this), total);
             switch token_receipt {
                 case (#Err e) {
                     return #Err(#TransferFailure);
@@ -683,7 +675,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         principal_repayments_index += 1;
 
-        let _txtid = add_pool_record(?msg.caller, #repayPrincipal, msg.caller, Principal.fromActor(this), amount, trx_fee, Time.now(), #succeeded);
+        let _txtid = add_pool_record(?msg.caller, #repayPrincipal, msg.caller, Principal.fromActor(this), total, trx_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };
@@ -698,12 +690,10 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         var trx_fee : Nat = 0;
 
         if (await is_icrc2(asset)) {
-            // cast token to actor
             let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
             trx_fee := await fetch_icrc_fee(asset);
             total := amount - trx_fee;
 
-            // check ICRC-2 allowance
             let account : ICRC.Account = {
                 owner = msg.caller;
                 subaccount = null;
@@ -712,28 +702,19 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
                 owner = Principal.fromActor(this);
                 subaccount = null;
             };
-            let balance : ICRC.Allowance = await icrc.icrc2_allowance({
-                account;
-                spender;
-            });
 
-            // transfer fund to pool.
-            let token_receipt = if (balance.allowance >= amount) {
-                let transfer_args : ICRC.TransferFromArgs = {
-                    created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
-                    spender_subaccount = null;
-                    from = account;
-                    to = spender;
-                    amount = amount;
-                    fee = null;
-                    memo = null;
-                };
-                // handle transfer result
-                await icrc.icrc2_transfer_from(transfer_args);
-            } else {
-                return #Err(#BalanceLow);
+            let transfer_args : ICRC.TransferFromArgs = {
+                created_at_time = ?Nat64.fromNat(Int.abs(Time.now()));
+                spender_subaccount = null;
+                from = account;
+                to = spender;
+                amount = total;
+                fee = ?trx_fee;
+                memo = null;
             };
 
+            // transfer fund to pool.
+            let token_receipt = await icrc.icrc2_transfer_from(transfer_args);
             switch token_receipt {
                 case (#Err e) {
                     return #Err(#TransferFailure);
@@ -746,15 +727,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             trx_fee := await fetch_dip_fee(asset);
             total := amount - trx_fee;
 
-            // check DIP20 allowance
-            let balance : Nat = (await dip20.allowance(msg.caller, Principal.fromActor(this)));
-
             // transfer to account.
-            let token_receipt = if (balance >= amount) {
-                await dip20.transferFrom(msg.caller, Principal.fromActor(this), amount);
-            } else {
-                return #Err(#BalanceLow);
-            };
+            let token_receipt = await dip20.transferFrom(msg.caller, Principal.fromActor(this), total);
             switch token_receipt {
                 case (#Err e) {
                     return #Err(#TransferFailure);
@@ -766,7 +740,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         interest_repayments_index += 1;
 
-        let _txtid = add_pool_record(?msg.caller, #repayInterest, msg.caller, Principal.fromActor(this), amount, trx_fee, Time.now(), #succeeded);
+        let _txtid = add_pool_record(?msg.caller, #repayInterest, msg.caller, Principal.fromActor(this), total, trx_fee, Time.now(), #succeeded);
 
         #Ok(total);
     };
@@ -821,7 +795,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
                 from_subaccount = null;
                 to = { owner = msg.caller; subaccount = null };
                 amount = total;
-                fee = null;
+                fee = ?trx_fee;
                 memo = null;
             };
 
@@ -837,7 +811,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             trx_fee := await fetch_dip_fee(asset);
             total := asset_amount - trx_fee;
 
-            let receipt = await dip20.transfer(msg.caller, total);
+            let receipt = await dip20.transfer(msg.caller, asset_amount);
             switch receipt {
                 case (#Err _) {
                     return #Err(#TransferFailure);

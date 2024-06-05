@@ -7,6 +7,8 @@ import Array "mo:base/Array";
 import Option "mo:base/Option";
 import Order "mo:base/Order";
 import Nat "mo:base/Nat";
+import Int "mo:base/Int";
+import Nat64 "mo:base/Nat64";
 import Result "mo:base/Result";
 import ExperimentalCycles "mo:base/ExperimentalCycles";
 
@@ -45,6 +47,106 @@ shared (msg) actor class ICRCMock(
             #BlockUsed;
             #AmountTooSmall;
         };
+    };
+
+    public type Subaccount = Blob;
+    public type Tokens = Nat;
+    public type Timestamp = Nat64;
+    public type BlockIndex = Nat;
+
+    public type Account = {
+        owner : Principal;
+        subaccount : ?Subaccount;
+    };
+
+    public type AllowanceArgs = {
+        account : Account;
+        spender : Account;
+    };
+
+    public type Allowance = {
+        allowance : Tokens;
+        expires_at : ?Timestamp;
+    };
+
+    public type ApproveArgs = {
+        from_subaccount : ?Subaccount;
+        spender : Account;
+        amount : Tokens;
+        expected_allowance : ?Tokens;
+        expires_at : ?Timestamp;
+        fee : ?Tokens;
+        memo : ?Blob;
+        created_at_time : ?Timestamp;
+    };
+
+    public type ApproveError = {
+        #BadFee : { expected_fee : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #AllowanceChanged : { current_allowance : Tokens };
+        #Expired : { ledger_time : Nat64 };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #Duplicate : { duplicate_of : BlockIndex };
+        #TemporarilyUnavailable;
+        #GenericError : { error_code : Nat; message : Text };
+    };
+
+    public type ApproveResult = {
+        #Ok : BlockIndex;
+        #Err : ApproveError;
+    };
+
+    public type TransferArg = {
+        from_subaccount : ?Subaccount;
+        to : Account;
+        amount : Tokens;
+        fee : ?Tokens;
+        memo : ?Blob;
+        created_at_time : ?Timestamp;
+    };
+
+    public type TransferError = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #TemporarilyUnavailable;
+        #Duplicate : { duplicate_of : BlockIndex };
+        #GenericError : { error_code : Nat; message : Text };
+    };
+
+    public type TransferResult = {
+        #Ok : BlockIndex;
+        #Err : TransferError;
+    };
+
+    public type TransferFromArgs = {
+        spender_subaccount : ?Subaccount;
+        from : Account;
+        to : Account;
+        amount : Tokens;
+        fee : ?Tokens;
+        memo : ?Blob;
+        created_at_time : ?Timestamp;
+    };
+
+    public type TransferFromResult = {
+        #Ok : BlockIndex;
+        #Err : TransferFromError;
+    };
+
+    public type TransferFromError = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #InsufficientAllowance : { allowance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #Duplicate : { duplicate_of : BlockIndex };
+        #TemporarilyUnavailable;
+        #GenericError : { error_code : Nat; message : Text };
     };
 
     private stable var owner_ : Principal = _owner;
@@ -414,6 +516,117 @@ shared (msg) actor class ICRCMock(
                 return [];
             };
         };
+    };
+
+    // ---- MOCK FUNCTION ---- //
+
+    public shared query func icrc1_fee() : async Nat {
+        return fee;
+    };
+
+    public shared query func icrc1_balance_of(account : Account) : async Nat {
+        return _balanceOf(account.owner);
+    };
+
+    public shared query func icrc1_supported_standards() : async [{
+        name : Text;
+        url : Text;
+    }] {
+        return [
+            {
+                name = "ICRC-1";
+                url = "";
+            },
+            {
+                name = "ICRC-2";
+                url = "";
+            },
+        ];
+    };
+
+    public query func icrc2_allowance(args : AllowanceArgs) : async Allowance {
+        let amount = _allowance(args.account.owner, args.spender.owner);
+
+        return {
+            allowance = amount;
+            expires_at = ?Nat64.fromNat(Int.abs(Time.now()));
+        };
+    };
+
+    public shared (msg) func icrc2_approve(args : ApproveArgs) : async ApproveResult {
+        let spender = args.spender.owner;
+        let value = args.amount;
+
+        if (_balanceOf(msg.caller) < fee) {
+            return #Err(#InsufficientFunds { balance = value });
+        };
+        _chargeFee(msg.caller, fee);
+        let v = value + fee;
+        if (value == 0 and Option.isSome(allowances.get(msg.caller))) {
+            let allowance_caller = Types.unwrap(allowances.get(msg.caller));
+            allowance_caller.delete(spender);
+            if (allowance_caller.size() == 0) { allowances.delete(msg.caller) } else {
+                allowances.put(msg.caller, allowance_caller);
+            };
+        } else if (value != 0 and Option.isNull(allowances.get(msg.caller))) {
+            var temp = HashMap.HashMap<Principal, Nat>(1, Principal.equal, Principal.hash);
+            temp.put(spender, v);
+            allowances.put(msg.caller, temp);
+        } else if (value != 0 and Option.isSome(allowances.get(msg.caller))) {
+            let allowance_caller = Types.unwrap(allowances.get(msg.caller));
+            allowance_caller.put(spender, v);
+            allowances.put(msg.caller, allowance_caller);
+        };
+        let txid = addRecord(null, #approve, msg.caller, spender, v, fee, Time.now(), #succeeded);
+        return #Ok(txid);
+    };
+
+    /// Transfers value amount of tokens to Principal to.
+    public shared (msg) func icrc1_transfer(args : TransferArg) : async TransferResult {
+        let to = args.to.owner;
+        let value = args.amount;
+
+        if (_balanceOf(msg.caller) < value + fee) {
+            return #Err(#InsufficientFunds { balance = value });
+        };
+        _chargeFee(msg.caller, fee);
+        _transfer(msg.caller, to, value);
+        let txid = addRecord(null, #transfer, msg.caller, to, value, fee, Time.now(), #succeeded);
+        return #Ok(txid);
+    };
+
+    /// Transfers value amount of tokens from Principal from to Principal to.
+    public shared (msg) func icrc2_transfer_from(args : TransferFromArgs) : async TransferFromResult {
+
+        let from = args.from.owner;
+        let to = args.to.owner;
+        let value = args.amount;
+
+        if (_balanceOf(from) < value + fee) {
+            return #Err(#InsufficientFunds { balance = value });
+        };
+        let allowed : Nat = _allowance(from, msg.caller);
+        if (allowed < value + fee) {
+            return #Err(#InsufficientAllowance { allowance = value });
+        };
+        _chargeFee(from, fee);
+        _transfer(from, to, value);
+        let allowed_new : Nat = allowed - value - fee;
+        if (allowed_new != 0) {
+            let allowance_from = Types.unwrap(allowances.get(from));
+            allowance_from.put(msg.caller, allowed_new);
+            allowances.put(from, allowance_from);
+        } else {
+            if (allowed != 0) {
+                let allowance_from = Types.unwrap(allowances.get(from));
+                allowance_from.delete(msg.caller);
+                if (allowance_from.size() == 0) { allowances.delete(from) } else {
+                    allowances.put(from, allowance_from);
+                };
+            };
+        };
+        let txid = addRecord(?msg.caller, #transferFrom, from, to, value, fee, Time.now(), #succeeded);
+        return #Ok(txid);
     };
 
     /*

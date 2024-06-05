@@ -12,6 +12,10 @@
       "main": "src/token/DIP20.mo",
       "type": "motoko"
     },
+    "dummy_ckusdc": {
+      "main": "src/token/ICRCMock.mo",
+      "type": "motoko"
+    },
     "rbt_token": {
       "main": "src/token/DIP20.mo",
       "type": "motoko"

@@ -96,6 +96,7 @@ export const idlFactory = ({ IDL }) => {
   const DepositReceipt = IDL.Variant({ 'Ok' : IDL.Nat, 'Err' : DepositErr });
   const DrawdownErr = IDL.Variant({
     'BeforeOriginationDate' : IDL.Null,
+    'InvalidDrawdown' : IDL.Null,
     'TransferFailure' : IDL.Null,
     'NotAuthorized' : IDL.Null,
     'BalanceLow' : IDL.Null,
@@ -106,7 +107,7 @@ export const idlFactory = ({ IDL }) => {
     'fee_basis_point' : IDL.Nat,
     'treasury' : IDL.Principal,
   });
-  const PoolStatus = IDL.Variant({
+  const PoolStatus__1 = IDL.Variant({
     'closed' : IDL.Null,
     'active' : IDL.Null,
     'pending' : IDL.Null,
@@ -116,7 +117,7 @@ export const idlFactory = ({ IDL }) => {
   const PoolRecord = IDL.Record({
     'id' : IDL.Principal,
     'apr' : IDL.Text,
-    'status' : PoolStatus,
+    'status' : PoolStatus__1,
     'title' : IDL.Text,
     'issuer_picture' : IDL.Text,
     'smart_contract_url' : IDL.Text,
@@ -262,6 +263,13 @@ export const idlFactory = ({ IDL }) => {
     'Ok' : IDL.Nat,
     'Err' : RepayPrincipalErr,
   });
+  const PoolStatus = IDL.Variant({
+    'closed' : IDL.Null,
+    'active' : IDL.Null,
+    'pending' : IDL.Null,
+    'open' : IDL.Null,
+    'default' : IDL.Null,
+  });
   const WithdrawErr = IDL.Variant({
     'TransferFailure' : IDL.Null,
     'WithdrawBeforeMaturityDate' : IDL.Null,
@@ -326,6 +334,8 @@ export const idlFactory = ({ IDL }) => {
     'set_borrower' : IDL.Func([IDL.Principal], [], ['oneway']),
     'set_decimal_offset' : IDL.Func([IDL.Nat8], [IDL.Nat8], []),
     'set_fee' : IDL.Func([Fee__1], [Fee__1], []),
+    'trigger_closed' : IDL.Func([], [PoolStatus], []),
+    'trigger_default' : IDL.Func([], [PoolStatus], []),
     'withdraw' : IDL.Func([IDL.Nat], [WithdrawReceipt], []),
   });
   return Pool;
