@@ -16,10 +16,16 @@ export interface Factory {
   'back_loan' : ActorMethod<[bigint], Principal>,
   'get_default_fee' : ActorMethod<[], Fee__1>,
   'get_default_pool_token_args' : ActorMethod<[], TokenInitArgs__1>,
-  'get_loans' : ActorMethod<[LoanStatus__1, bigint, bigint], Array<Loan>>,
+  'get_loans' : ActorMethod<
+    [[] | [LoanStatus__1], bigint, bigint],
+    Array<Loan>
+  >,
   'get_owner' : ActorMethod<[], Principal>,
   'get_pool_cycle' : ActorMethod<[], bigint>,
-  'get_pools' : ActorMethod<[PoolStatus, bigint, bigint], Array<PoolRecord>>,
+  'get_pools' : ActorMethod<
+    [[] | [PoolStatus], bigint, bigint],
+    Array<PoolRecord>
+  >,
   'propose_loan' : ActorMethod<[Loan], ProposeLoanReceipt>,
   'reject_loan' : ActorMethod<[bigint], [] | [Loan]>,
   'set_default_fee' : ActorMethod<[Fee__1], Fee__1>,

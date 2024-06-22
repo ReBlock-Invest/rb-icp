@@ -165,10 +165,10 @@ type Factory =
    back_loan: (nat) -> (principal);
    get_default_fee: () -> (Fee__1) query;
    get_default_pool_token_args: () -> (TokenInitArgs__1) query;
-   get_loans: (LoanStatus__1, nat, nat) -> (vec Loan) query;
+   get_loans: (opt LoanStatus__1, nat, nat) -> (vec Loan) query;
    get_owner: () -> (principal) query;
    get_pool_cycle: () -> (nat) query;
-   get_pools: (PoolStatus, nat, nat) -> (vec PoolRecord) query;
+   get_pools: (opt PoolStatus, nat, nat) -> (vec PoolRecord) query;
    propose_loan: (Loan) -> (ProposeLoanReceipt);
    reject_loan: (nat) -> (opt Loan);
    set_default_fee: (Fee__1) -> (Fee__1);

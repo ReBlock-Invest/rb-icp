@@ -165,15 +165,19 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
         return #Ok(new_loan);
     };
 
-    public query func get_loans(status : LoanStatus, start : Nat, limit : Nat) : async [Loan] {
-        let f_loans = TrieMap.mapFilter<Nat, Loan, Loan>(
-            loans,
-            Nat.equal,
-            Hash.hash,
-            func(key, value) = if (value.status == ?status) { ?value } else {
-                null;
-            },
-        );
+    public query func get_loans(status : ?LoanStatus, start : Nat, limit : Nat) : async [Loan] {
+        let f_loans = if (status != null) {
+            TrieMap.mapFilter<Nat, Loan, Loan>(
+                loans,
+                Nat.equal,
+                Hash.hash,
+                func(key, value) = if (value.status == status) { ?value } else {
+                    null;
+                },
+            );
+        } else {
+            loans;
+        };
 
         let o_loans : [Loan] = Iter.toArray(f_loans.vals());
         var n_loans : [Loan] = [];
@@ -247,6 +251,7 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
 
         Cycles.add<system>(pool_cycle);
         let pool = await Pool.Pool({
+            owner = owner;
             loan = loan;
             fee = fee;
             token_args = {
@@ -302,15 +307,27 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
         };
     };
 
-    public query func get_pools(status : PoolStatus, start : Nat, limit : Nat) : async [PoolRecord] {
-        let f_pools = TrieMap.mapFilter<Nat, PoolRecord, PoolRecord>(
-            pools,
-            Nat.equal,
-            Hash.hash,
-            func(key, value) = if (value.status == status) { ?value } else {
-                null;
-            },
-        );
+    public query func get_pools(status : ?PoolStatus, start : Nat, limit : Nat) : async [PoolRecord] {
+        let f_pools = if (status != null) {
+            let nstatus : PoolStatus = switch (status) {
+                case (null) {
+                    #open;
+                };
+                case (?s) {
+                    s;
+                };
+            };
+            TrieMap.mapFilter<Nat, PoolRecord, PoolRecord>(
+                pools,
+                Nat.equal,
+                Hash.hash,
+                func(key, value) = if (value.status == nstatus) { ?value } else {
+                    null;
+                },
+            );
+        } else {
+            pools;
+        };
 
         let o_pools : [PoolRecord] = Iter.toArray(f_pools.vals());
         var n_pools : [PoolRecord] = [];

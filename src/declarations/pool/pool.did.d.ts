@@ -22,6 +22,7 @@ export interface ArchivedTransaction {
 }
 export type Balance = bigint;
 export type Balance__1 = bigint;
+export type BlockIndex = bigint;
 export interface Burn {
   'from' : Account,
   'memo' : [] | [Uint8Array | number[]],
@@ -34,16 +35,37 @@ export interface BurnArgs {
   'created_at_time' : [] | [bigint],
   'amount' : Balance,
 }
-export type DepositErr = { 'TransferFailure' : null } |
+export type DepositErr = {
+    'GenericError' : { 'message' : string, 'error_code' : bigint }
+  } |
+  { 'TemporarilyUnavailable' : null } |
+  { 'InsufficientAllowance' : { 'allowance' : Tokens } } |
+  { 'BadBurn' : { 'min_burn_amount' : Tokens } } |
+  { 'Duplicate' : { 'duplicate_of' : BlockIndex } } |
+  { 'TransferFailure' : null } |
   { 'FundriseTimeEnded' : null } |
-  { 'BalanceLow' : null };
+  { 'BadFee' : { 'expected_fee' : Tokens } } |
+  { 'CreatedInFuture' : { 'ledger_time' : bigint } } |
+  { 'BalanceLow' : null } |
+  { 'TooOld' : null } |
+  { 'InsufficientFunds' : { 'balance' : Tokens } };
 export type DepositReceipt = { 'Ok' : bigint } |
   { 'Err' : DepositErr };
-export type DrawdownErr = { 'BeforeOriginationDate' : null } |
+export type DrawdownErr = {
+    'GenericError' : { 'message' : string, 'error_code' : bigint }
+  } |
+  { 'BeforeOriginationDate' : null } |
   { 'InvalidDrawdown' : null } |
+  { 'TemporarilyUnavailable' : null } |
+  { 'BadBurn' : { 'min_burn_amount' : Tokens } } |
+  { 'Duplicate' : { 'duplicate_of' : BlockIndex } } |
   { 'TransferFailure' : null } |
   { 'NotAuthorized' : null } |
-  { 'BalanceLow' : null };
+  { 'BadFee' : { 'expected_fee' : Tokens } } |
+  { 'CreatedInFuture' : { 'ledger_time' : bigint } } |
+  { 'BalanceLow' : null } |
+  { 'TooOld' : null } |
+  { 'InsufficientFunds' : { 'balance' : Tokens } };
 export type DrawdownReceipt = { 'Ok' : bigint } |
   { 'Err' : DrawdownErr };
 export interface Fee {
@@ -69,6 +91,7 @@ export interface GetTransactionsResponse {
 }
 export interface InitPool {
   'fee' : Fee,
+  'owner' : Principal,
   'loan' : Loan,
   'token_args' : TokenInitArgs,
 }
@@ -131,8 +154,13 @@ export interface Pool {
   'get_deposit_address' : ActorMethod<[], string>,
   'get_fee' : ActorMethod<[], Fee__1>,
   'get_info' : ActorMethod<[], PoolRecord>,
+  'get_owner' : ActorMethod<[], Principal>,
   'get_pool_transaction' : ActorMethod<[bigint], PoolTxRecord>,
   'get_pool_transactions' : ActorMethod<[bigint, bigint], Array<PoolTxRecord>>,
+  'get_repayment_index' : ActorMethod<
+    [],
+    { 'total' : bigint, 'index' : bigint }
+  >,
   'get_total_fund' : ActorMethod<[], bigint>,
   'get_transaction' : ActorMethod<[TxIndex__1], [] | [Transaction__1]>,
   'get_transactions' : ActorMethod<
@@ -165,6 +193,10 @@ export interface Pool {
   'set_borrower' : ActorMethod<[Principal], undefined>,
   'set_decimal_offset' : ActorMethod<[number], number>,
   'set_fee' : ActorMethod<[Fee__1], Fee__1>,
+  'set_fundrise_end_time' : ActorMethod<[Time], Time>,
+  'set_maturity_date' : ActorMethod<[Time], Time>,
+  'set_origination_date' : ActorMethod<[Time], Time>,
+  'transfer_ownership' : ActorMethod<[Principal], Principal>,
   'trigger_closed' : ActorMethod<[], PoolStatus>,
   'trigger_default' : ActorMethod<[], PoolStatus>,
   'withdraw' : ActorMethod<[bigint], WithdrawReceipt>,
@@ -220,14 +252,36 @@ export type QueryArchiveFn = ActorMethod<
   [GetTransactionsRequest__1],
   TransactionRange
 >;
-export type RepayInterestErr = { 'TransferFailure' : null } |
+export type RepayInterestErr = {
+    'GenericError' : { 'message' : string, 'error_code' : bigint }
+  } |
+  { 'TemporarilyUnavailable' : null } |
+  { 'InsufficientAllowance' : { 'allowance' : Tokens } } |
+  { 'BadBurn' : { 'min_burn_amount' : Tokens } } |
+  { 'Duplicate' : { 'duplicate_of' : BlockIndex } } |
+  { 'TransferFailure' : null } |
+  { 'BadFee' : { 'expected_fee' : Tokens } } |
+  { 'CreatedInFuture' : { 'ledger_time' : bigint } } |
   { 'BalanceLow' : null } |
-  { 'ZeroAmountTransfer' : null };
+  { 'TooOld' : null } |
+  { 'ZeroAmountTransfer' : null } |
+  { 'InsufficientFunds' : { 'balance' : Tokens } };
 export type RepayInterestReceipt = { 'Ok' : bigint } |
   { 'Err' : RepayInterestErr };
-export type RepayPrincipalErr = { 'TransferFailure' : null } |
+export type RepayPrincipalErr = {
+    'GenericError' : { 'message' : string, 'error_code' : bigint }
+  } |
+  { 'TemporarilyUnavailable' : null } |
+  { 'InsufficientAllowance' : { 'allowance' : Tokens } } |
+  { 'BadBurn' : { 'min_burn_amount' : Tokens } } |
+  { 'Duplicate' : { 'duplicate_of' : BlockIndex } } |
+  { 'TransferFailure' : null } |
+  { 'BadFee' : { 'expected_fee' : Tokens } } |
+  { 'CreatedInFuture' : { 'ledger_time' : bigint } } |
   { 'BalanceLow' : null } |
-  { 'ZeroAmountTransfer' : null };
+  { 'TooOld' : null } |
+  { 'ZeroAmountTransfer' : null } |
+  { 'InsufficientFunds' : { 'balance' : Tokens } };
 export type RepayPrincipalReceipt = { 'Ok' : bigint } |
   { 'Err' : RepayPrincipalErr };
 export type Subaccount = Uint8Array | number[];
@@ -245,6 +299,7 @@ export interface TokenInitArgs {
   'max_supply' : Balance,
   'symbol' : string,
 }
+export type Tokens = bigint;
 export interface Transaction {
   'burn' : [] | [Burn],
   'kind' : string,
@@ -298,9 +353,19 @@ export type Value = { 'Int' : bigint } |
   { 'Nat' : bigint } |
   { 'Blob' : Uint8Array | number[] } |
   { 'Text' : string };
-export type WithdrawErr = { 'TransferFailure' : null } |
+export type WithdrawErr = {
+    'GenericError' : { 'message' : string, 'error_code' : bigint }
+  } |
+  { 'TemporarilyUnavailable' : null } |
+  { 'BadBurn' : { 'min_burn_amount' : Tokens } } |
+  { 'Duplicate' : { 'duplicate_of' : BlockIndex } } |
+  { 'TransferFailure' : null } |
   { 'WithdrawBeforeMaturityDate' : null } |
-  { 'BalanceLow' : null };
+  { 'BadFee' : { 'expected_fee' : Tokens } } |
+  { 'CreatedInFuture' : { 'ledger_time' : bigint } } |
+  { 'BalanceLow' : null } |
+  { 'TooOld' : null } |
+  { 'InsufficientFunds' : { 'balance' : Tokens } };
 export type WithdrawReceipt = { 'Ok' : bigint } |
   { 'Err' : WithdrawErr };
 export interface _SERVICE extends Pool {}

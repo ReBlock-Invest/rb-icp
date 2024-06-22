@@ -1,7 +1,12 @@
 import Time "mo:base/Time";
+import Principal "mo:base/Principal";
 import ICRC1 "mo:icrc1/ICRC1";
+import ICRC "icrc";
 
 module {
+
+    public type Tokens = Nat;
+    public type BlockIndex = Nat;
 
     public type Balance = {
         owner : Principal;
@@ -79,6 +84,7 @@ module {
     };
 
     public type InitPool = {
+        owner : Principal;
         loan : Loan;
         fee : Fee;
         token_args : ICRC1.TokenInitArgs;
@@ -185,6 +191,14 @@ module {
     };
 
     public type WithdrawErr = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #TemporarilyUnavailable;
+        #Duplicate : { duplicate_of : BlockIndex };
+        #GenericError : { error_code : Nat; message : Text };
         #BalanceLow;
         #TransferFailure;
         #WithdrawBeforeMaturityDate;
@@ -196,6 +210,15 @@ module {
     };
 
     public type DepositErr = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #InsufficientAllowance : { allowance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #Duplicate : { duplicate_of : BlockIndex };
+        #TemporarilyUnavailable;
+        #GenericError : { error_code : Nat; message : Text };
         #BalanceLow;
         #TransferFailure;
         #FundriseTimeEnded;
@@ -207,6 +230,15 @@ module {
     };
 
     public type RepayPrincipalErr = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #InsufficientAllowance : { allowance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #Duplicate : { duplicate_of : BlockIndex };
+        #TemporarilyUnavailable;
+        #GenericError : { error_code : Nat; message : Text };
         #BalanceLow;
         #TransferFailure;
         #ZeroAmountTransfer;
@@ -218,6 +250,15 @@ module {
     };
 
     public type RepayInterestErr = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #InsufficientAllowance : { allowance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #Duplicate : { duplicate_of : BlockIndex };
+        #TemporarilyUnavailable;
+        #GenericError : { error_code : Nat; message : Text };
         #BalanceLow;
         #TransferFailure;
         #ZeroAmountTransfer;
@@ -229,6 +270,14 @@ module {
     };
 
     public type DrawdownErr = {
+        #BadFee : { expected_fee : Tokens };
+        #BadBurn : { min_burn_amount : Tokens };
+        #InsufficientFunds : { balance : Tokens };
+        #TooOld;
+        #CreatedInFuture : { ledger_time : Nat64 };
+        #TemporarilyUnavailable;
+        #Duplicate : { duplicate_of : BlockIndex };
+        #GenericError : { error_code : Nat; message : Text };
         #BalanceLow;
         #TransferFailure;
         #NotAuthorized;

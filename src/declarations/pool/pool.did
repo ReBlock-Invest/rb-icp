@@ -5,7 +5,18 @@ type WithdrawReceipt =
  };
 type WithdrawErr = 
  variant {
+   BadBurn: record {min_burn_amount: Tokens;};
+   BadFee: record {expected_fee: Tokens;};
    BalanceLow;
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: BlockIndex;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientFunds: record {balance: Tokens;};
+   TemporarilyUnavailable;
+   TooOld;
    TransferFailure;
    WithdrawBeforeMaturityDate;
  };
@@ -79,6 +90,7 @@ type Transaction =
    timestamp: Timestamp;
    transfer: opt Transfer;
  };
+type Tokens = nat;
 type TokenInitArgs = 
  record {
    advanced_settings: opt AdvancedSettings;
@@ -109,7 +121,19 @@ type RepayPrincipalReceipt =
  };
 type RepayPrincipalErr = 
  variant {
+   BadBurn: record {min_burn_amount: Tokens;};
+   BadFee: record {expected_fee: Tokens;};
    BalanceLow;
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: BlockIndex;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientAllowance: record {allowance: Tokens;};
+   InsufficientFunds: record {balance: Tokens;};
+   TemporarilyUnavailable;
+   TooOld;
    TransferFailure;
    ZeroAmountTransfer;
  };
@@ -120,7 +144,19 @@ type RepayInterestReceipt =
  };
 type RepayInterestErr = 
  variant {
+   BadBurn: record {min_burn_amount: Tokens;};
+   BadFee: record {expected_fee: Tokens;};
    BalanceLow;
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: BlockIndex;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientAllowance: record {allowance: Tokens;};
+   InsufficientFunds: record {balance: Tokens;};
+   TemporarilyUnavailable;
+   TooOld;
    TransferFailure;
    ZeroAmountTransfer;
  };
@@ -199,8 +235,13 @@ type Pool =
    get_deposit_address: () -> (text);
    get_fee: () -> (Fee__1) query;
    get_info: () -> (PoolRecord) query;
+   get_owner: () -> (principal) query;
    get_pool_transaction: (nat) -> (PoolTxRecord) query;
    get_pool_transactions: (nat, nat) -> (vec PoolTxRecord) query;
+   get_repayment_index: () -> (record {
+                                 index: nat;
+                                 total: nat;
+                               });
    get_total_fund: () -> (nat) query;
    get_transaction: (TxIndex__1) -> (opt Transaction__1);
    get_transactions: (GetTransactionsRequest) ->
@@ -228,6 +269,10 @@ type Pool =
    set_borrower: (principal) -> () oneway;
    set_decimal_offset: (nat8) -> (nat8);
    set_fee: (Fee__1) -> (Fee__1);
+   set_fundrise_end_time: (Time) -> (Time);
+   set_maturity_date: (Time) -> (Time);
+   set_origination_date: (Time) -> (Time);
+   transfer_ownership: (principal) -> (principal);
    trigger_closed: () -> (PoolStatus);
    trigger_default: () -> (PoolStatus);
    withdraw: (nat) -> (WithdrawReceipt);
@@ -292,6 +337,7 @@ type InitPool =
  record {
    fee: Fee;
    loan: Loan;
+   owner: principal;
    token_args: TokenInitArgs;
  };
 type GetTransactionsResponse = 
@@ -330,10 +376,21 @@ type DrawdownReceipt =
  };
 type DrawdownErr = 
  variant {
+   BadBurn: record {min_burn_amount: Tokens;};
+   BadFee: record {expected_fee: Tokens;};
    BalanceLow;
    BeforeOriginationDate;
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: BlockIndex;};
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientFunds: record {balance: Tokens;};
    InvalidDrawdown;
    NotAuthorized;
+   TemporarilyUnavailable;
+   TooOld;
    TransferFailure;
  };
 type DepositReceipt = 
@@ -343,8 +400,20 @@ type DepositReceipt =
  };
 type DepositErr = 
  variant {
+   BadBurn: record {min_burn_amount: Tokens;};
+   BadFee: record {expected_fee: Tokens;};
    BalanceLow;
+   CreatedInFuture: record {ledger_time: nat64;};
+   Duplicate: record {duplicate_of: BlockIndex;};
    FundriseTimeEnded;
+   GenericError: record {
+                   error_code: nat;
+                   message: text;
+                 };
+   InsufficientAllowance: record {allowance: Tokens;};
+   InsufficientFunds: record {balance: Tokens;};
+   TemporarilyUnavailable;
+   TooOld;
    TransferFailure;
  };
 type BurnArgs = 
@@ -361,6 +430,7 @@ type Burn =
    from: Account;
    memo: opt blob;
  };
+type BlockIndex = nat;
 type Balance__1 = nat;
 type Balance = nat;
 type ArchivedTransaction = 

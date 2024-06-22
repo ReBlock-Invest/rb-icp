@@ -46,7 +46,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
     private stable var decimal_offset : Nat8 = 0;
     private stable var status : PoolStatus = #open;
 
-    private stable let owner : Principal = msg.caller;
+    private stable var owner : Principal = args.owner;
     private stable let token = ICRC1.init({
         args.token_args with minting_account = Option.get(
             args.token_args.minting_account,
@@ -81,6 +81,19 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
     // ===== POOL INFORMATION ===== //
 
+    public shared ({ caller }) func transfer_ownership(new_owner : Principal) : async (Principal) {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        owner := new_owner;
+        return owner;
+    };
+
+    public shared query func get_owner() : async Principal {
+        return owner;
+    };
+
     public query func get_info() : async PoolRecord {
         return {
             loan.info with id = Principal.fromActor(this);
@@ -106,6 +119,33 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         fee := new_fee;
         return fee;
+    };
+
+    public shared ({ caller }) func set_fundrise_end_time(time : Time.Time) : async Time.Time {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        fundrise_end_time := time;
+        return fundrise_end_time;
+    };
+
+    public shared ({ caller }) func set_origination_date(time : Time.Time) : async Time.Time {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        origination_date := time;
+        return origination_date;
+    };
+
+    public shared ({ caller }) func set_maturity_date(time : Time.Time) : async Time.Time {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        maturity_date := time;
+        return maturity_date;
     };
 
     public shared ({ caller }) func trigger_closed() : async PoolStatus {
@@ -415,8 +455,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         );
 
         switch trx_receipt {
-            case (#Err _) {
-                return #Err(#TransferFailure);
+            case (#Err e) {
+                return #Err e;
             };
             case _ {};
         };
@@ -448,7 +488,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             spender_subaccount = null;
             from = account;
             to = spender;
-            amount = amount;
+            amount = amount_after_tfee;
             fee = ?trx_fee;
             memo = null;
         };
@@ -457,7 +497,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         let token_receipt = await icrc.icrc2_transfer_from(transfer_args);
         switch token_receipt {
             case (#Err e) {
-                return #Err(#TransferFailure);
+                return #Err e;
             };
             case _ {};
         };
@@ -500,8 +540,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         );
 
         switch trx_receipt {
-            case (#Err _) {
-                return #Err(#TransferFailure);
+            case (#Err e) {
+                return #Err e;
             };
             case _ {};
         };
@@ -549,8 +589,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
             let receipt = await icrc.icrc1_transfer(transfer_args);
             switch receipt {
-                case (#Err _) {
-                    return #Err(#TransferFailure);
+                case (#Err e) {
+                    return #Err e;
                 };
                 case _ {};
             };
@@ -616,6 +656,13 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         };
     };
 
+    public func get_repayment_index() : async { index : Nat; total : Nat } {
+        return {
+            index = interest_repayments_index;
+            total = interest_payment_deadline.size();
+        };
+    };
+
     public shared (msg) func repay_principal() : async T.RepayPrincipalReceipt {
         let amount = await next_principal_repayment();
         if (amount == 0) {
@@ -653,7 +700,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             let token_receipt = await icrc.icrc2_transfer_from(transfer_args);
             switch token_receipt {
                 case (#Err e) {
-                    return #Err(#TransferFailure);
+                    return #Err e;
                 };
                 case _ {};
             };
@@ -717,7 +764,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             let token_receipt = await icrc.icrc2_transfer_from(transfer_args);
             switch token_receipt {
                 case (#Err e) {
-                    return #Err(#TransferFailure);
+                    return #Err e;
                 };
                 case _ {};
             };
@@ -801,8 +848,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
             let receipt = await icrc.icrc1_transfer(transfer_args);
             switch receipt {
-                case (#Err _) {
-                    return #Err(#TransferFailure);
+                case (#Err e) {
+                    return #Err e;
                 };
                 case _ {};
             };

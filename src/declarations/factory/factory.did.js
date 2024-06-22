@@ -155,14 +155,14 @@ export const idlFactory = ({ IDL }) => {
     'get_default_fee' : IDL.Func([], [Fee__1], ['query']),
     'get_default_pool_token_args' : IDL.Func([], [TokenInitArgs__1], ['query']),
     'get_loans' : IDL.Func(
-        [LoanStatus__1, IDL.Nat, IDL.Nat],
+        [IDL.Opt(LoanStatus__1), IDL.Nat, IDL.Nat],
         [IDL.Vec(Loan)],
         ['query'],
       ),
     'get_owner' : IDL.Func([], [IDL.Principal], ['query']),
     'get_pool_cycle' : IDL.Func([], [IDL.Nat], ['query']),
     'get_pools' : IDL.Func(
-        [PoolStatus, IDL.Nat, IDL.Nat],
+        [IDL.Opt(PoolStatus), IDL.Nat, IDL.Nat],
         [IDL.Vec(PoolRecord)],
         ['query'],
       ),
