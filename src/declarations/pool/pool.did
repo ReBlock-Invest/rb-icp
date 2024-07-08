@@ -222,7 +222,7 @@ type PoolOperation =
  };
 type Pool = 
  service {
-   balance_of: (principal) -> (nat) query;
+   balance_of: (principal) -> (nat);
    burn: (BurnArgs) -> (TransferResult);
    convert_to_assets: (nat) -> (nat);
    convert_to_shares: (nat) -> (nat);
@@ -233,8 +233,11 @@ type Pool =
    get_borrower: () -> (vec principal);
    get_decimal_offset: () -> (nat8);
    get_deposit_address: () -> (text);
+   get_factory: () -> (principal) query;
    get_fee: () -> (Fee__1) query;
+   get_fee_asset: () -> (nat) query;
    get_info: () -> (PoolRecord) query;
+   get_outstanding_loan: () -> (nat);
    get_owner: () -> (principal) query;
    get_pool_transaction: (nat) -> (PoolTxRecord) query;
    get_pool_transactions: (nat, nat) -> (vec PoolTxRecord) query;
@@ -268,7 +271,9 @@ type Pool =
    repay_principal: () -> (RepayPrincipalReceipt);
    set_borrower: (principal) -> () oneway;
    set_decimal_offset: (nat8) -> (nat8);
+   set_factory: (principal) -> (principal);
    set_fee: (Fee__1) -> (Fee__1);
+   set_fee_asset: (nat) -> (nat);
    set_fundrise_end_time: (Time) -> (Time);
    set_maturity_date: (Time) -> (Time);
    set_origination_date: (Time) -> (Time);
@@ -335,6 +340,7 @@ type Loan =
  };
 type InitPool = 
  record {
+   factory: principal;
    fee: Fee;
    loan: Loan;
    owner: principal;

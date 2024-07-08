@@ -171,9 +171,11 @@ type Factory =
    get_pools: (opt PoolStatus, nat, nat) -> (vec PoolRecord) query;
    propose_loan: (Loan) -> (ProposeLoanReceipt);
    reject_loan: (nat) -> (opt Loan);
+   remove_pool: (principal) -> () oneway;
    set_default_fee: (Fee__1) -> (Fee__1);
    set_default_pool_token_args: (TokenInitArgs__1) -> (TokenInitArgs__1);
    set_pool_cycle: (nat) -> (nat);
+   set_pool_status: (PoolStatus) -> () oneway;
    transfer_ownership: (principal) -> (principal);
  };
 type Balance = nat;

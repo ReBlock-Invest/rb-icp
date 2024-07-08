@@ -28,12 +28,14 @@ export interface Factory {
   >,
   'propose_loan' : ActorMethod<[Loan], ProposeLoanReceipt>,
   'reject_loan' : ActorMethod<[bigint], [] | [Loan]>,
+  'remove_pool' : ActorMethod<[Principal], undefined>,
   'set_default_fee' : ActorMethod<[Fee__1], Fee__1>,
   'set_default_pool_token_args' : ActorMethod<
     [TokenInitArgs__1],
     TokenInitArgs__1
   >,
   'set_pool_cycle' : ActorMethod<[bigint], bigint>,
+  'set_pool_status' : ActorMethod<[PoolStatus], undefined>,
   'transfer_ownership' : ActorMethod<[Principal], Principal>,
 }
 export interface Fee {

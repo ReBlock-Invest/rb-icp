@@ -1,7 +1,6 @@
 import Time "mo:base/Time";
 import Principal "mo:base/Principal";
 import ICRC1 "mo:icrc1/ICRC1";
-import ICRC "icrc";
 
 module {
 
@@ -84,6 +83,7 @@ module {
     };
 
     public type InitPool = {
+        factory : Principal;
         owner : Principal;
         loan : Loan;
         fee : Fee;
@@ -306,5 +306,9 @@ module {
     public type ProposeLoanReceipt = {
         #Ok : Loan;
         #Err : LoanValidationErr;
+    };
+
+    public type Factory = actor {
+        set_pool_status : shared (PoolStatus) -> async ();
     };
 };

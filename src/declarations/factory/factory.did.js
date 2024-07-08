@@ -168,6 +168,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'propose_loan' : IDL.Func([Loan], [ProposeLoanReceipt], []),
     'reject_loan' : IDL.Func([IDL.Nat], [IDL.Opt(Loan)], []),
+    'remove_pool' : IDL.Func([IDL.Principal], [], ['oneway']),
     'set_default_fee' : IDL.Func([Fee__1], [Fee__1], []),
     'set_default_pool_token_args' : IDL.Func(
         [TokenInitArgs__1],
@@ -175,6 +176,7 @@ export const idlFactory = ({ IDL }) => {
         [],
       ),
     'set_pool_cycle' : IDL.Func([IDL.Nat], [IDL.Nat], []),
+    'set_pool_status' : IDL.Func([PoolStatus], [], ['oneway']),
     'transfer_ownership' : IDL.Func([IDL.Principal], [IDL.Principal], []),
   });
   return Factory;

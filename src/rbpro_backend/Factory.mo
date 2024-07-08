@@ -36,7 +36,7 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
     private stable var upgrade_loans : [(Nat, Loan)] = [];
     private stable var upgrade_pools : [(Nat, PoolRecord)] = [];
     private stable let ic : IC.Self = actor "aaaaa-aa"; // management canister id
-    private stable var pool_cycle : Nat = 1_000_000_000_000;
+    private stable var pool_cycle : Nat = 200_000_000_000;
     private stable var fee : Fee = args.fee;
     private stable var pool_token_args : TokenInitArgs = args.pool_token_args;
     private stable var owner : Principal = msg.caller;
@@ -251,6 +251,7 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
 
         Cycles.add<system>(pool_cycle);
         let pool = await Pool.Pool({
+            factory = Principal.fromActor(this);
             owner = owner;
             loan = loan;
             fee = fee;
@@ -348,6 +349,37 @@ shared (msg) actor class Factory(args : T.InitFactory) = this {
 
         buff.add(data);
         return Buffer.toArray(buff);
+    };
+
+    // called by pool
+    public shared ({ caller }) func set_pool_status(status : PoolStatus) {
+        pools := TrieMap.mapFilter<Nat, PoolRecord, PoolRecord>(
+            pools,
+            Nat.equal,
+            Hash.hash,
+            func(key, value) = if (value.id == caller) {
+                ?{
+                    value with status = status
+                };
+            } else {
+                ?value;
+            },
+        );
+    };
+
+    public shared ({ caller }) func remove_pool(id : Principal) {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        pools := TrieMap.mapFilter<Nat, PoolRecord, PoolRecord>(
+            pools,
+            Nat.equal,
+            Hash.hash,
+            func(key, value) = if (value.id != id) {
+                ?value;
+            } else { null },
+        );
     };
 
     // ===== UPGRADE ===== /

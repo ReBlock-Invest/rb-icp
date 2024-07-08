@@ -42,10 +42,12 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
     private stable var loan : Loan = args.loan;
     private stable var fee : Fee = args.fee;
+    private stable var fee_asset : Nat = 10000; // reduce inter canister call
     private stable var total_fund : Nat = 0;
     private stable var decimal_offset : Nat8 = 0;
     private stable var status : PoolStatus = #open;
 
+    private stable var factory : Principal = args.factory;
     private stable var owner : Principal = args.owner;
     private stable let token = ICRC1.init({
         args.token_args with minting_account = Option.get(
@@ -80,6 +82,32 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
     private stable var interest_payment_deadline : [Time.Time] = args.loan.interest_payment_deadline;
 
     // ===== POOL INFORMATION ===== //
+
+    public shared ({ caller }) func set_factory(new_factory : Principal) : async (Principal) {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        factory := new_factory;
+        return factory;
+    };
+
+    public shared query func get_factory() : async Principal {
+        return factory;
+    };
+
+    public shared ({ caller }) func set_fee_asset(amount : Nat) : async (Nat) {
+        if (caller != owner) {
+            throw Error.reject("Unauthorized");
+        };
+
+        fee_asset := amount;
+        return fee_asset;
+    };
+
+    public shared query func get_fee_asset() : async Nat {
+        return fee_asset;
+    };
 
     public shared ({ caller }) func transfer_ownership(new_owner : Principal) : async (Principal) {
         if (caller != owner) {
@@ -153,7 +181,8 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             throw Error.reject("Unauthorized");
         };
 
-        status := #closed;
+        await set_status(#closed);
+
         return status;
     };
 
@@ -162,8 +191,16 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             throw Error.reject("Unauthorized");
         };
 
-        status := #default;
+        await set_status(#default);
+
         return status;
+    };
+
+    private func set_status(new_status : PoolStatus) : async () {
+        status := new_status;
+
+        let fact = actor (Principal.toText(factory)) : T.Factory;
+        await fact.set_pool_status(status);
     };
 
     public shared func fee_calc(amount : Nat) : async Nat {
@@ -191,15 +228,36 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         return total_fund;
     };
 
-    public shared query func balance_of(lender : Principal) : async Nat {
-        switch (lenders.get(lender)) {
-            case (null) {
-                return 0;
-            };
-            case (?amount) {
-                return amount;
-            };
+    public shared func get_outstanding_loan() : async Nat {
+        var total : Nat = 0;
+
+        for (element in loan.principal_schedule.vals()) {
+            total += element;
         };
+
+        for (element in loan.interest_schedule.vals()) {
+            total += element;
+        };
+
+        let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
+        let account = {
+            owner = Principal.fromActor(this);
+            subaccount = null;
+        };
+        let balance = await icrc.icrc1_balance_of(account);
+
+        return total - balance;
+    };
+
+    public shared func balance_of(lender : Principal) : async Nat {
+        let account = {
+            owner = lender;
+            subaccount = null;
+        };
+        let amount = await icrc1_balance_of(account);
+        let supply = await icrc1_total_supply();
+
+        return (amount * (total_fund + 1)) / (supply + Nat.pow(10, Nat8.toNat(decimal_offset)));
     };
 
     public shared func convert_to_shares(amount : Nat) : async Nat {
@@ -360,9 +418,10 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
     public query func get_pool_transactions(start : Nat, limit : Nat) : async [PoolTxRecord] {
         var ret : [PoolTxRecord] = [];
+        let rev_records : [PoolTxRecord] = Array.reverse(pool_ops);
         var i = start;
-        while (i < start + limit and i < pool_ops.size()) {
-            ret := pool_add(ret, pool_ops[i]);
+        while (i < start + limit and i < rev_records.size()) {
+            ret := pool_add(ret, rev_records[i]);
             i += 1;
         };
         return ret;
@@ -370,14 +429,15 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
     public query func get_user_transactons(a : Principal, start : Nat, limit : Nat) : async [PoolTxRecord] {
         var res : [PoolTxRecord] = [];
+        let user_records = Array.filter<PoolTxRecord>(pool_ops, func i = i.caller == ?a or i.from == a or i.to == a);
+        let rev_records : [PoolTxRecord] = Array.reverse(user_records);
+
         var index : Nat = 0;
-        for (i in pool_ops.vals()) {
-            if (i.caller == ?a or i.from == a or i.to == a) {
-                if (index >= start and index < start + limit) {
-                    res := pool_add(res, i);
-                };
-                index += 1;
+        for (i in rev_records.vals()) {
+            if (index >= start and index < start + limit) {
+                res := pool_add(res, i);
             };
+            index += 1;
         };
         return res;
     };
@@ -468,7 +528,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
     private func deposit_icrc(caller : Principal, amount : Nat) : async T.DepositReceipt {
         let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
-        let trx_fee = await fetch_icrc_fee(asset);
+        let trx_fee = fee_asset;
 
         let amount_after_tfee : Nat = amount - trx_fee;
 
@@ -575,7 +635,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
                 owner = self;
                 subaccount = null;
             });
-            trx_fee := await fetch_icrc_fee(asset);
+            trx_fee := fee_asset;
             total := amount - trx_fee;
 
             let transfer_args : ICRC.TransferArg = {
@@ -609,7 +669,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
             };
         };
 
-        status := #active;
+        await set_status(#active);
 
         let _txtid = add_pool_record(?msg.caller, #drawdown, self, msg.caller, total, trx_fee, Time.now(), #succeeded);
 
@@ -674,7 +734,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         if (await is_icrc2(asset)) {
             let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
-            trx_fee := await fetch_icrc_fee(asset);
+            trx_fee := fee_asset;
             total := amount - trx_fee;
 
             let account : ICRC.Account = {
@@ -738,7 +798,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         if (await is_icrc2(asset)) {
             let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
-            trx_fee := await fetch_icrc_fee(asset);
+            trx_fee := fee_asset;
             total := amount - trx_fee;
 
             let account : ICRC.Account = {
@@ -834,7 +894,7 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
 
         if (await is_icrc2(asset)) {
             let icrc = actor (Principal.toText(asset)) : ICRC.Actor;
-            trx_fee := await fetch_icrc_fee(asset);
+            trx_fee := fee_asset;
             total := asset_amount - trx_fee;
 
             let transfer_args : ICRC.TransferArg = {
@@ -878,13 +938,14 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
         metadata.fee;
     };
 
-    private func fetch_icrc_fee(token : Principal) : async Nat {
+    private func _fetch_icrc_fee(token : Principal) : async Nat {
         let icrc = actor (Principal.toText(token)) : ICRC.Actor;
         let fee = await icrc.icrc1_fee();
         fee;
     };
 
     private func is_icrc2(token : Principal) : async Bool {
+        /*
         let icrc = actor (Principal.toText(token)) : ICRC.Actor;
         let standards = await icrc.icrc1_supported_standards();
         var found : Bool = false;
@@ -893,8 +954,9 @@ shared (msg) actor class Pool(args : T.InitPool) : async ICRC1.FullInterface = t
                 found := true;
             };
         };
-
-        return found;
+        */
+        // reduce inter canister call :P
+        return true;
     };
 
     public shared (msg) func set_borrower(n_borrower : Principal) {
